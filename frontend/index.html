@@ -4,6 +4,682 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<<<<<<< HEAD
+    <title>Gestor de Políticas y Pautas</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+    <div class="container-fluid">
+        <div class="row min-vh-100">
+
+            <!-- ============================= -->
+            <!-- SIDEBAR -->
+            <!-- ============================= -->
+
+            <aside class="col-md-3 col-lg-2 bg-dark text-white p-0">
+
+                <div class="d-flex flex-column h-100">
+
+                    <!-- LOGO -->
+                    <div class="p-4 border-bottom border-secondary">
+
+                        <h2 class="h4 mb-1">
+                            Gestor de Politicas
+                        </h2>
+
+                        <span class="text-secondary">
+                            Control de actualizaciones
+                        </span>
+
+                    </div>
+
+                    <!-- MENU -->
+                    <nav class="nav nav-pills flex-column p-3 gap-2">
+
+                        <button
+                            class="menu-item nav-link active text-start text-white"
+                            data-section="dashboard">
+
+                            📊 Dashboard
+
+                        </button>
+
+                        <button
+                            class="menu-item nav-link text-start text-white"
+                            data-section="pautas">
+
+                            📋 Pautas
+
+                        </button>
+
+                        <button
+                            class="menu-item nav-link text-start text-white"
+                            data-section="actualizacion">
+
+                            ➕ Nueva actualización
+
+                        </button>
+
+                        <button
+                            class="menu-item nav-link text-start text-white"
+                            data-section="historial">
+
+                            🕒 Historial
+
+                        </button>
+
+                    </nav>
+
+                </div>
+
+            </aside>
+
+
+            <!-- ============================= -->
+            <!-- CONTENIDO PRINCIPAL -->
+            <!-- ============================= -->
+
+            <main class="col-md-9 col-lg-10 p-0">
+
+                <!-- HEADER -->
+
+                <header class="bg-white border-bottom p-4">
+
+                    <h1 id="page-title" class="h3 mb-1">
+                        Dashboard
+                    </h1>
+
+                    <p id="page-description" class="text-muted mb-0">
+                        Resumen de las políticas y pautas registradas.
+                    </p>
+
+                </header>
+
+
+                <div class="container-fluid p-4">
+
+
+                    <!-- ============================= -->
+                    <!-- DASHBOARD -->
+                    <!-- ============================= -->
+
+                    <section id="dashboard" class="section active">
+
+                        <!-- CARDS -->
+
+                        <div class="row g-4 mb-4">
+
+                            <!-- TOTAL PAUTAS -->
+
+                            <div class="col-md-4">
+
+                                <div class="card shadow-sm h-100">
+
+                                    <div class="card-body">
+
+                                        <span class="text-muted">
+                                            Total de pautas
+                                        </span>
+
+                                        <strong
+                                            id="total-pautas"
+                                            class="d-block fs-2 mt-2">
+
+                                            0
+
+                                        </strong>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- ACTUALIZACIONES -->
+
+                            <div class="col-md-4">
+
+                                <div class="card shadow-sm h-100">
+
+                                    <div class="card-body">
+
+                                        <span class="text-muted">
+                                            Actualizaciones
+                                        </span>
+
+                                        <strong
+                                            id="total-actualizaciones"
+                                            class="d-block fs-2 mt-2">
+
+                                            0
+
+                                        </strong>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- ÚLTIMA ACTUALIZACIÓN -->
+
+                            <div class="col-md-4">
+
+                                <div class="card shadow-sm h-100">
+
+                                    <div class="card-body">
+
+                                        <span class="text-muted">
+                                            Última actualización
+                                        </span>
+
+                                        <strong
+                                            id="ultima-actualizacion"
+                                            class="d-block fs-4 mt-2">
+
+                                        </strong>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ÚLTIMOS CAMBIOS -->
+
+                        <div class="card shadow-sm">
+
+                            <div class="card-header bg-white">
+
+                                <h2 class="h5 mb-0">
+                                    Últimos cambios
+                                </h2>
+
+                            </div>
+
+                            <div
+                                id="ultimos-cambios"
+                                class="card-body">
+
+                                <p class="empty text-muted mb-0">
+                                    No existen actualizaciones registradas.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- ============================= -->
+                    <!-- PAUTAS -->
+                    <!-- ============================= -->
+
+                    <section
+                        id="pautas"
+                        class="section d-none">
+
+                        <!-- HEADER -->
+
+                        <div
+                            class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+
+                            <div>
+
+                                <h2 class="h3 mb-1">
+                                    Políticas y Pautas
+                                </h2>
+
+                                <p class="text-muted mb-0">
+                                    Consulta las pautas actualmente registradas.
+                                </p>
+
+                            </div>
+
+                            <button
+                                class="btn btn-primary"
+                                id="btn-nueva-pauta">
+
+                                + Nueva pauta
+
+                            </button>
+
+                        </div>
+
+
+                        <!-- FILTROS -->
+
+                        <div class="card shadow-sm mb-4">
+
+                            <div class="card-body">
+
+                                <div class="row g-3">
+
+                                    <div class="col-md-8">
+
+                                        <label
+                                            for="buscar-pauta"
+                                            class="form-label">
+
+                                            Buscar pauta
+
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            id="buscar-pauta"
+                                            class="form-control"
+                                            placeholder="Buscar pauta...">
+
+                                    </div>
+
+
+                                    <div class="col-md-4">
+
+                                        <label
+                                            for="filtro-estado"
+                                            class="form-label">
+
+                                            Estado
+
+                                        </label>
+
+                                        <select
+                                            id="filtro-estado"
+                                            class="form-select">
+
+                                            <option value="todos">
+                                                Todas
+                                            </option>
+
+                                            <option value="activa">
+                                                Activas
+                                            </option>
+
+                                            <option value="inactiva">
+                                                Inactivas
+                                            </option>
+
+                                        </select>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- TABLA -->
+
+                        <div class="card shadow-sm">
+
+                            <div class="card-body p-0">
+
+                                <div class="table-responsive">
+
+                                    <table class="table table-hover align-middle mb-0">
+
+                                        <thead class="table-light">
+
+                                            <tr>
+
+                                                <th>Nombre</th>
+
+                                                <th>Categoría</th>
+
+                                                <th>Versión</th>
+
+                                                <th>Última actualización</th>
+
+                                                <th>Estado</th>
+
+                                                <th>Acciones</th>
+
+                                            </tr>
+
+                                        </thead>
+
+                                        <tbody id="tabla-pautas">
+
+                                        </tbody>
+
+                                    </table>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- ============================= -->
+                    <!-- NUEVA ACTUALIZACIÓN -->
+                    <!-- ============================= -->
+
+                    <section
+                        id="actualizacion"
+                        class="section d-none">
+
+                        <div class="mb-4">
+
+                            <h2 class="h3 mb-1">
+                                Nueva actualización
+                            </h2>
+
+                            <p class="text-muted mb-0">
+                                Registra un nuevo cambio realizado
+                                sobre una pauta.
+                            </p>
+
+                        </div>
+
+
+                        <div class="card shadow-sm">
+
+                            <div class="card-body p-4">
+
+                                <form id="form-actualizacion">
+
+                                    <div class="row g-3">
+
+                                        <!-- PAUTA -->
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="pauta-select"
+                                                class="form-label">
+
+                                                Pauta
+
+                                            </label>
+
+                                            <select
+                                                id="pauta-select"
+                                                class="form-select"
+                                                required>
+
+                                                <option value="">
+                                                    Seleccionar pauta
+                                                </option>
+
+                                            </select>
+
+                                        </div>
+
+
+                                        <!-- FECHA -->
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="fecha"
+                                                class="form-label">
+
+                                                Fecha de actualización
+
+                                            </label>
+
+                                            <input
+                                                type="date"
+                                                id="fecha"
+                                                class="form-control"
+                                                required>
+
+                                        </div>
+
+
+                                        <!-- REUNIÓN -->
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="reunion"
+                                                class="form-label">
+
+                                                Número de reunión
+
+                                            </label>
+
+                                            <input
+                                                type="text"
+                                                id="reunion"
+                                                class="form-control"
+                                                placeholder="Ej: Reunión semanal 28/08"
+                                                required>
+
+                                        </div>
+
+
+                                        <!-- RESPONSABLE -->
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="responsable"
+                                                class="form-label">
+
+                                                Responsable
+
+                                            </label>
+
+                                            <input
+                                                type="text"
+                                                id="responsable"
+                                                class="form-control"
+                                                placeholder="Nombre del responsable"
+                                                required>
+
+                                        </div>
+
+
+                                        <!-- VERSIÓN -->
+
+                                        <div class="col-md-6">
+
+                                            <label
+                                                for="version"
+                                                class="form-label">
+
+                                                Nueva versión
+
+                                            </label>
+
+                                            <input
+                                                type="text"
+                                                id="version"
+                                                class="form-control"
+                                                placeholder="Ej: 1.2"
+                                                required>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <!-- CAMBIO -->
+
+                                    <div class="mt-4">
+
+                                        <label
+                                            for="cambio"
+                                            class="form-label">
+
+                                            Cambio realizado
+
+                                        </label>
+
+                                        <textarea
+                                            id="cambio"
+                                            class="form-control"
+                                            rows="5"
+                                            placeholder="Describe exactamente qué cambió..."
+                                            required></textarea>
+
+                                    </div>
+
+
+                                    <!-- OBSERVACIONES -->
+
+                                    <div class="mt-4">
+
+                                        <label
+                                            for="observaciones"
+                                            class="form-label">
+
+                                            Observaciones
+
+                                        </label>
+
+                                        <textarea
+                                            id="observaciones"
+                                            class="form-control"
+                                            rows="4"
+                                            placeholder="Información adicional..."></textarea>
+
+                                    </div>
+
+
+                                    <!-- BOTONES -->
+
+                                    <div
+                                        class="d-flex gap-2 mt-4">
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-primary">
+
+                                            Guardar actualización
+
+                                        </button>
+
+                                        <button
+                                            type="reset"
+                                            class="btn btn-secondary">
+
+                                            Limpiar
+
+                                        </button>
+
+                                    </div>
+
+                                </form>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- ============================= -->
+                    <!-- HISTORIAL -->
+                    <!-- ============================= -->
+
+                    <section
+                        id="historial"
+                        class="section d-none">
+
+                        <div class="mb-4">
+
+                            <h2 class="h3 mb-1">
+                                Historial de cambios
+                            </h2>
+
+                            <p class="text-muted mb-0">
+                                Registro histórico de modificaciones.
+                            </p>
+
+                        </div>
+
+
+                        <!-- FILTRO -->
+
+                        <div class="card shadow-sm mb-4">
+
+                            <div class="card-body">
+
+                                <label
+                                    for="historial-pauta"
+                                    class="form-label">
+
+                                    Filtrar por pauta
+
+                                </label>
+
+                                <select
+                                    id="historial-pauta"
+                                    class="form-select">
+
+                                    <option value="todos">
+                                        Todas las pautas
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- TIMELINE -->
+
+                        <div
+                            id="timeline"
+                            class="timeline">
+
+                            <div class="card shadow-sm">
+
+                                <div class="card-body">
+
+                                    <p class="empty text-muted mb-0">
+                                        No existen cambios registrados.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+                </div>
+
+            </main>
+
+        </div>
+    </div>
+
+
+    <!-- Bootstrap JS -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js">
+    </script>
+
+    <!-- JavaScript del proyecto -->
+    <script src="app.js"></script>
+
+</body>
+
+</html>
+
+=======
     <title>Gestor de Políticas y Pautas</title>
 
     <!-- Bootstrap 5 -->
@@ -688,3 +1364,5 @@
 </body>
 
 </html>
+
+>>>>>>> b9307ca57d6bbb8bef152ff6c4edba9ef8ff17cc
