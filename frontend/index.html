@@ -87,15 +87,26 @@
 
                 <!-- HEADER -->
 
-                <header class="bg-white border-bottom p-4">
+                <header class="bg-white border-bottom p-4 d-flex justify-content-between align-items-start gap-3">
 
-                    <h1 id="page-title" class="h3 mb-1">
-                        Dashboard
-                    </h1>
+                    <div>
+                        <h1 id="page-title" class="h3 mb-1">
+                            Dashboard
+                        </h1>
 
-                    <p id="page-description" class="text-muted mb-0">
-                        Resumen de las políticas y pautas registradas.
-                    </p>
+                        <p id="page-description" class="text-muted mb-0">
+                            Resumen de las políticas y pautas registradas.
+                        </p>
+                    </div>
+
+                    <button
+                        id="cerrar-sesion"
+                        type="button"
+                        class="btn btn-outline-danger">
+
+                        Cerrar sesión
+
+                    </button>
 
                 </header>
 
@@ -672,7 +683,7 @@
     </script>
 
     <!-- JavaScript del proyecto -->
-    <script src="app.js"></script>
+    <script src="js/app.js"></script>
 
 </body>
 

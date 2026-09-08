@@ -67,6 +67,11 @@ const sections = document.querySelectorAll(".section");
 
 const pageTitle = document.getElementById("page-title");
 const pageDescription = document.getElementById("page-description");
+const logoutButton = document.getElementById("cerrar-sesion");
+
+logoutButton.addEventListener("click", () => {
+  window.location.href = "/login";
+});
 
 
 menuItems.forEach(item => {
