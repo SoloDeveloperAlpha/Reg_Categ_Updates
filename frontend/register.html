@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitácora - Registrarse</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="background-color: #16171d;">
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100">
+            <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <div class="text-center mb-4">
+                            <h1 class="h3 fw-bold">Registrarse</h1>
+                        </div>
+
+                        <form id="form-register">
+                            <div class="mb-3">
+                                <label for="register-usuario" class="form-label">Usuario</label>
+                                <input type="text" class="form-control" id="register-usuario" placeholder="Ingrese un usuario" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="register-email" class="form-label">Correo electrónico</label>
+                                <input type="email" class="form-control" id="register-email" placeholder="Ingrese su correo" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="register-contrasena" class="form-label">Contraseña</label>
+                                <input type="password" class="form-control" id="register-contrasena" placeholder="Ingrese una contraseña" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="register-confirmar" class="form-label">Confirmar contraseña</label>
+                                <input type="password" class="form-control" id="register-confirmar" placeholder="Repita la contraseña" required>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success">Crear cuenta</button>
+                                <a href="/login" class="btn btn-outline-secondary">Volver a iniciar sesión</a>
+                            </div>
+
+                            <div id="mensaje-register" class="alert alert-success mt-3 d-none" role="alert"></div>
+                            <div id="mensaje-register-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+                        </form>
+                    </div>
+                </div>
+
+                <p class="text-center text-muted small mt-3">© 2026 Bitácora</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/register.js"></script>
+</body>
+</html>

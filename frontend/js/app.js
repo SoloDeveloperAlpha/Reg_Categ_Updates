@@ -39,6 +39,23 @@ function guardarDatos() {
   localStorage.setItem("actualizaciones", JSON.stringify(actualizaciones));
 }
 
+function obtenerUsuarioActual() {
+  try {
+    return JSON.parse(localStorage.getItem("usuarioActual")) || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function completarResponsableActual() {
+  const responsableInput = document.getElementById("responsable");
+  if (!responsableInput) return;
+
+  const usuarioActual = obtenerUsuarioActual();
+  responsableInput.value = usuarioActual?.usuario || "";
+  responsableInput.readOnly = true;
+}
+
 const menuItems = document.querySelectorAll(".menu-item");
 const sections = document.querySelectorAll(".section");
 const pageTitle = document.getElementById("page-title");
@@ -216,8 +233,7 @@ if (formulario) {
       id: Date.now(),
       pautaId,
       fecha: document.getElementById("fecha").value,
-      reunion: document.getElementById("reunion").value.trim(),
-      responsable: document.getElementById("responsable").value.trim(),
+      responsable: document.getElementById("responsable").value.trim() || obtenerUsuarioActual()?.usuario || "",
       version: document.getElementById("version").value.trim(),
       cambio: document.getElementById("cambio").value.trim(),
       observaciones: document.getElementById("observaciones").value.trim()
@@ -234,6 +250,7 @@ if (formulario) {
     guardarDatos();
     alert("Actualización registrada correctamente.");
     formulario.reset();
+    completarResponsableActual();
     actualizarTodo();
     document.querySelector('[data-section="dashboard"]')?.click();
   });
@@ -268,7 +285,7 @@ function mostrarHistorial(pautaId = "todos") {
           <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
             <div>
               <h5 class="card-title mb-1">${pauta?.nombre || "Pauta eliminada"}</h5>
-              <div class="text-muted small">${registro.fecha} · Versión ${registro.version} · ${registro.reunion}</div>
+              <div class="text-muted small">${registro.fecha} · Versión ${registro.version}</div>
             </div>
             <span class="badge bg-primary align-self-start">Cambio registrado</span>
           </div>
@@ -337,6 +354,13 @@ if (btnNuevaPauta) {
 }
 
 function actualizarTodo() {
+  let agente = localStorage.getItem("usuarioActual");
+  const nombreUsuario = document.getElementById("user-name");
+  if (nombreUsuario) {
+    nombreUsuario.textContent = agente ? JSON.parse(agente).usuario : "Invitado";
+  }
+
+  completarResponsableActual();
   actualizarDashboard();
   mostrarPautas();
   actualizarSelectPautas();
