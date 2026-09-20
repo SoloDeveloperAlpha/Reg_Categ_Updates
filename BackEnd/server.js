@@ -5,6 +5,7 @@ const authController = require('./controllers/auth.controller');
 const pautasRoutes = require('./routes/pautas.routes');
 const politicasRoutes = require('./routes/politicas.routes');
 const minutasRoutes = require('./routes/minutas.routes');
+const actualizacionesRoutes = require('./routes/actualizaciones.routes');
 const authRoutes = require('./routes/auth.routes');
 
 const app = express();
@@ -19,6 +20,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/pautas', pautasRoutes);
 app.use('/api/politicas', politicasRoutes);
 app.use('/api/minutas', minutasRoutes);
+app.use('/api/actualizaciones', actualizacionesRoutes);
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(frontendPath, 'login.html'));
