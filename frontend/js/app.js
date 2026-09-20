@@ -2,41 +2,75 @@
 /* DATOS INICIALES */
 /* ========================================= */
 
-let pautas = JSON.parse(localStorage.getItem("pautas")) || [
-  {
-    id: 1,
-    nombre: "Clasificación de errores",
-    categoria: "Auditoría",
-    version: "1.2",
-    fecha: "2026-08-26",
-    estado: "activa"
-  },
-  {
-    id: 2,
-    nombre: "Validación de tickets",
-    categoria: "Tickets",
-    version: "2.0",
-    fecha: "2026-08-20",
-    estado: "activa"
-  }
-];
+function normalizarFecha(fecha) {
+  if (!fecha) return new Date().toISOString().slice(0, 10);
 
-let actualizaciones = JSON.parse(localStorage.getItem("actualizaciones")) || [
-  {
-    id: 1,
-    pautaId: 1,
-    fecha: "2026-08-26",
-    reunion: "Reunión semanal 26/08",
-    responsable: "Administrador",
-    version: "1.2",
-    cambio: "Se modificaron los criterios para clasificar errores.",
-    observaciones: "Cambio aprobado durante la reunión semanal."
+  const partes = fecha.split("-");
+  if (partes.length === 3 && partes[0].length === 2) {
+    return `${partes[2]}-${partes[1]}-${partes[0]}`;
   }
-];
 
-function guardarDatos() {
-  localStorage.setItem("pautas", JSON.stringify(pautas));
-  localStorage.setItem("actualizaciones", JSON.stringify(actualizaciones));
+  return fecha;
+}
+
+function obtenerDescripcion(contenido) {
+  return contenido.Descripcion || contenido.Conclusion || contenido.Detalle ||
+    (contenido.Procesos ? JSON.stringify(contenido.Procesos) : "");
+}
+
+function crearPautasIniciales() {
+  return Object.entries(datos).flatMap(([categoria, elementos], categoriaIndex) =>
+    Object.entries(elementos).map(([clave, contenido], elementoIndex) => ({
+      id: (categoriaIndex + 1) * 100 + elementoIndex + 1,
+      nombre: contenido.name || contenido.title || clave,
+      categoria,
+      fecha: normalizarFecha(contenido.fecha),
+      responsable: "",
+      descripcion: obtenerDescripcion(contenido)
+    }))
+  );
+}
+
+let pautas = crearPautasIniciales();
+let actualizaciones = [];
+
+async function cargarDatosBD() {
+  const [respuestaPautas, respuestaActualizaciones] = await Promise.all([
+    fetch("/api/pautas"),
+    fetch("/api/actualizaciones")
+  ]);
+
+  if (!respuestaPautas.ok || !respuestaActualizaciones.ok) {
+    throw new Error("No se pudieron cargar los datos de la base de datos.");
+  }
+
+  const pautasBD = await respuestaPautas.json();
+  actualizaciones = await respuestaActualizaciones.json();
+
+  const catalogo = crearPautasIniciales();
+  const nombresCatalogo = new Set(catalogo.map((pauta) => `${pauta.categoria}|${pauta.nombre}`));
+
+  pautas = catalogo.map((pauta) => {
+    const pautaBD = pautasBD.find((item) =>
+      item.nombre === pauta.nombre && item.categoria === pauta.categoria
+    );
+
+    return pautaBD
+      ? {
+        ...pauta,
+        bdId: pautaBD.id,
+        fecha: pautaBD.fecha,
+        responsable: pautaBD.responsable,
+        descripcion: pautaBD.descripcion || pauta.descripcion
+      }
+      : pauta;
+  });
+
+  pautasBD.forEach((pautaBD) => {
+    if (!nombresCatalogo.has(`${pautaBD.categoria}|${pautaBD.nombre}`)) {
+      pautas.push({ ...pautaBD, bdId: pautaBD.id });
+    }
+  });
 }
 
 function obtenerUsuarioActual() {
@@ -73,6 +107,7 @@ function actualizarTitulo(section) {
     dashboard: ["Dashboard", "Resumen de las políticas y pautas registradas."],
     pautas: ["Políticas y Pautas", "Consulta las pautas actualmente registradas."],
     actualizacion: ["Nueva actualización", "Registra un nuevo cambio realizado sobre una pauta."],
+    "nueva-pauta": ["Nueva pauta", "Registra una pauta nueva dentro de una categoría."],
     historial: ["Historial", "Consulta todos los cambios realizados."]
   };
 
@@ -128,14 +163,14 @@ function mostrarUltimosCambios() {
   const ultimas = [...actualizaciones].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 5);
 
   contenedor.innerHTML = ultimas.map((actualizacion) => {
-    const pauta = pautas.find((p) => p.id === actualizacion.pautaId);
+    const pauta = pautas.find((p) => p.bdId === actualizacion.pautaId || p.id === actualizacion.pautaId);
     return `
       <div class="card mb-3 border-start border-primary border-3">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h5 class="card-title mb-1">${pauta?.nombre || "Pauta eliminada"}</h5>
-              <small class="text-muted">${actualizacion.fecha} · Versión ${actualizacion.version}</small>
+              <small class="text-muted">${actualizacion.fecha}</small>
             </div>
             <span class="badge bg-primary">Actualización</span>
           </div>
@@ -149,19 +184,15 @@ function mostrarUltimosCambios() {
 function mostrarPautas() {
   const tabla = document.getElementById("tabla-pautas");
   const inputBusqueda = document.getElementById("buscar-pauta");
-  const filtroEstado = document.getElementById("filtro-estado");
 
   const textoBusqueda = (inputBusqueda?.value || "").toLowerCase().trim();
-  const estadoSeleccionado = filtroEstado?.value || "todos";
 
   const pautasFiltradas = pautas.filter((pauta) => {
     const coincideTexto =
       pauta.nombre.toLowerCase().includes(textoBusqueda) ||
-      pauta.categoria.toLowerCase().includes(textoBusqueda) ||
-      pauta.version.toLowerCase().includes(textoBusqueda);
+      pauta.categoria.toLowerCase().includes(textoBusqueda);
 
-    const coincideEstado = estadoSeleccionado === "todos" || pauta.estado === estadoSeleccionado;
-    return coincideTexto && coincideEstado;
+    return coincideTexto;
   });
 
   tabla.innerHTML = "";
@@ -169,7 +200,7 @@ function mostrarPautas() {
   if (pautasFiltradas.length === 0) {
     tabla.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-muted py-4">No se encontraron pautas con los filtros actuales.</td>
+        <td colspan="5" class="text-center text-muted py-4">No se encontraron pautas con los filtros actuales.</td>
       </tr>
     `;
     return;
@@ -177,16 +208,13 @@ function mostrarPautas() {
 
   pautasFiltradas.forEach((pauta) => {
     const fila = document.createElement("tr");
-    const estadoClase = pauta.estado === "activa" ? "bg-success" : "bg-secondary";
-
     fila.innerHTML = `
       <td><strong>${pauta.nombre}</strong></td>
       <td>${pauta.categoria}</td>
-      <td><span class="badge bg-dark">${pauta.version}</span></td>
       <td>${pauta.fecha}</td>
-      <td><span class="badge ${estadoClase}">${pauta.estado}</span></td>
+      <td>${pauta.responsable || "-"}</td>
       <td>
-        <button type="button" class="btn btn-sm btn-outline-primary" onclick="verHistorial(${pauta.id})">Ver historial</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="verHistorial(${pauta.bdId || pauta.id})">Ver historial</button>
       </td>
     `;
 
@@ -197,15 +225,53 @@ function mostrarPautas() {
 }
 
 function actualizarSelectPautas() {
-  const select = document.getElementById("pauta-select");
-  if (!select) return;
+  const categoriaSelect = document.getElementById("pauta-categoria");
+  const pautaSelect = document.getElementById("pauta-select");
+  if (!categoriaSelect || !pautaSelect) return;
 
-  select.innerHTML = '<option value="">Seleccionar pauta</option>';
-  pautas.forEach((pauta) => {
-    select.innerHTML += `<option value="${pauta.id}">${pauta.nombre}</option>`;
+  categoriaSelect.innerHTML = '<option value="">Seleccionar categoría</option>';
+  Object.keys(datos).forEach((categoria) => {
+    categoriaSelect.innerHTML += `<option value="${categoria}">${categoria}</option>`;
   });
 
+  const nuevaCategoriaSelect = document.getElementById("nueva-pauta-categoria");
+  if (nuevaCategoriaSelect) {
+    nuevaCategoriaSelect.innerHTML = '<option value="">Seleccionar categoría</option>';
+    Object.keys(datos).forEach((categoria) => {
+      nuevaCategoriaSelect.innerHTML += `<option value="${categoria}">${categoria}</option>`;
+    });
+  }
+
+  pautaSelect.innerHTML = '<option value="">Seleccionar pauta</option>';
+  pautaSelect.disabled = true;
+
   actualizarSelectHistorial();
+}
+
+function actualizarSelectHijos(categoria) {
+  const pautaSelect = document.getElementById("pauta-select");
+  if (!pautaSelect) return;
+
+  pautaSelect.innerHTML = '<option value="">Seleccionar pauta</option>';
+  pautaSelect.disabled = !categoria;
+  if (!categoria || !datos[categoria]) return;
+
+  Object.entries(datos[categoria]).forEach(([clave, contenido]) => {
+    const nombre = contenido.name || contenido.title || clave;
+    pautaSelect.innerHTML += `<option value="${clave}">${nombre}</option>`;
+  });
+}
+
+function cargarDetallePautaSeleccionada() {
+  const categoria = document.getElementById("pauta-categoria")?.value;
+  const clave = document.getElementById("pauta-select")?.value;
+  const cambio = document.getElementById("cambio");
+  if (!categoria || !clave || !cambio) return;
+
+  const pautaId = (Object.keys(datos).indexOf(categoria) + 1) * 100 +
+    Object.keys(datos[categoria]).indexOf(clave) + 1;
+  const pauta = pautas.find((item) => item.id === pautaId);
+  if (pauta) cambio.value = pauta.descripcion || "";
 }
 
 function actualizarSelectHistorial() {
@@ -214,45 +280,132 @@ function actualizarSelectHistorial() {
 
   select.innerHTML = '<option value="todos">Todas las pautas</option>';
   pautas.forEach((pauta) => {
-    select.innerHTML += `<option value="${pauta.id}">${pauta.nombre}</option>`;
+    select.innerHTML += `<option value="${pauta.bdId || pauta.id}">${pauta.nombre}</option>`;
   });
+}
+
+async function registrarActualizacion(pauta, fecha, responsable, cambio, observaciones) {
+  const respuesta = await fetch("/api/actualizaciones", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      pautaId: pauta.bdId || null,
+      pauta: { nombre: pauta.nombre, categoria: pauta.categoria },
+      fecha,
+      responsable,
+      cambio,
+      observaciones
+    })
+  });
+
+  if (!respuesta.ok) {
+    const error = await respuesta.json().catch(() => ({}));
+    throw new Error(error.mensaje || "No se pudo guardar la actualización.");
+  }
 }
 
 const formulario = document.getElementById("form-actualizacion");
 if (formulario) {
-  formulario.addEventListener("submit", (event) => {
+  const categoriaSelect = document.getElementById("pauta-categoria");
+  const pautaSelect = document.getElementById("pauta-select");
+  categoriaSelect?.addEventListener("change", () => {
+    actualizarSelectHijos(categoriaSelect.value);
+  });
+  pautaSelect?.addEventListener("change", cargarDetallePautaSeleccionada);
+
+  formulario.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const pautaId = Number(document.getElementById("pauta-select").value);
-    if (!pautaId) {
+    const categoria = categoriaSelect.value;
+    const clave = document.getElementById("pauta-select").value;
+    const pautaId = (Object.keys(datos).indexOf(categoria) + 1) * 100 +
+      Object.keys(datos[categoria] || {}).indexOf(clave) + 1;
+    if (!categoria || !clave || pautaId <= 0) {
       alert("Debes seleccionar una pauta.");
       return;
     }
 
+    const pauta = pautas.find((item) => item.id === pautaId);
+    if (!pauta) {
+      alert("La pauta seleccionada no está disponible.");
+      return;
+    }
+
+    const fechaActual = new Date();
+    const fechaLocal = [
+      fechaActual.getFullYear(),
+      String(fechaActual.getMonth() + 1).padStart(2, "0"),
+      String(fechaActual.getDate()).padStart(2, "0")
+    ].join("-");
+    const responsable = document.getElementById("responsable").value.trim() || obtenerUsuarioActual()?.usuario || "";
+
     const nuevaActualizacion = {
       id: Date.now(),
       pautaId,
-      fecha: document.getElementById("fecha").value,
-      responsable: document.getElementById("responsable").value.trim() || obtenerUsuarioActual()?.usuario || "",
-      version: document.getElementById("version").value.trim(),
+      fecha: fechaLocal,
+      responsable,
       cambio: document.getElementById("cambio").value.trim(),
       observaciones: document.getElementById("observaciones").value.trim()
     };
 
-    actualizaciones.push(nuevaActualizacion);
-
-    const pauta = pautas.find((p) => p.id === pautaId);
-    if (pauta) {
-      pauta.version = nuevaActualizacion.version;
-      pauta.fecha = nuevaActualizacion.fecha;
+    try {
+      await registrarActualizacion(
+        pauta,
+        fechaLocal,
+        responsable,
+        nuevaActualizacion.cambio,
+        nuevaActualizacion.observaciones
+      );
+      await cargarDatosBD();
+    } catch (error) {
+      alert(error.message);
+      return;
     }
 
-    guardarDatos();
     alert("Actualización registrada correctamente.");
     formulario.reset();
     completarResponsableActual();
     actualizarTodo();
     document.querySelector('[data-section="dashboard"]')?.click();
+  });
+}
+
+const formularioNuevaPauta = document.getElementById("form-nueva-pauta");
+if (formularioNuevaPauta) {
+  formularioNuevaPauta.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const responsable = obtenerUsuarioActual()?.usuario || "";
+    const categoria = document.getElementById("nueva-pauta-categoria").value;
+    const nombre = document.getElementById("nueva-pauta-nombre").value.trim();
+    const descripcion = document.getElementById("nueva-pauta-descripcion").value.trim();
+
+    if (!responsable) {
+      alert("Debes iniciar sesión para registrar una pauta.");
+      return;
+    }
+
+    const fechaActual = new Date();
+    const fecha = [
+      fechaActual.getFullYear(),
+      String(fechaActual.getMonth() + 1).padStart(2, "0"),
+      String(fechaActual.getDate()).padStart(2, "0")
+    ].join("-");
+
+    const respuesta = await fetch("/api/pautas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre, categoria, descripcion, fecha, responsable })
+    });
+
+    if (!respuesta.ok) {
+      const error = await respuesta.json().catch(() => ({}));
+      alert(error.mensaje || "No se pudo registrar la nueva pauta.");
+      return;
+    }
+
+    alert("Pauta registrada correctamente.");
+    window.location.reload();
   });
 }
 
@@ -277,7 +430,7 @@ function mostrarHistorial(pautaId = "todos") {
   }
 
   timeline.innerHTML = registros.map((registro) => {
-    const pauta = pautas.find((p) => p.id === registro.pautaId);
+    const pauta = pautas.find((p) => p.bdId === registro.pautaId || p.id === registro.pautaId);
 
     return `
       <div class="card shadow-sm mb-3">
@@ -285,7 +438,7 @@ function mostrarHistorial(pautaId = "todos") {
           <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
             <div>
               <h5 class="card-title mb-1">${pauta?.nombre || "Pauta eliminada"}</h5>
-              <div class="text-muted small">${registro.fecha} · Versión ${registro.version}</div>
+              <div class="text-muted small">${registro.fecha}</div>
             </div>
             <span class="badge bg-primary align-self-start">Cambio registrado</span>
           </div>
@@ -298,7 +451,7 @@ function mostrarHistorial(pautaId = "todos") {
           </div>
 
           <div class="mb-3">
-            <h6>Responsable</h6>
+            <h6>Auditor</h6>
             <p class="mb-0 text-muted">${registro.responsable}</p>
           </div>
 
@@ -340,24 +493,25 @@ if (buscarPauta) {
   buscarPauta.addEventListener("input", () => mostrarPautas());
 }
 
-const filtroEstado = document.getElementById("filtro-estado");
-if (filtroEstado) {
-  filtroEstado.addEventListener("change", () => mostrarPautas());
-}
-
 const btnNuevaPauta = document.getElementById("btn-nueva-pauta");
 if (btnNuevaPauta) {
   btnNuevaPauta.addEventListener("click", () => {
-    const menuActualizacion = document.querySelector('[data-section="actualizacion"]');
-    if (menuActualizacion) menuActualizacion.click();
+    const menuNuevaPauta = document.querySelector('[data-section="nueva-pauta"]');
+    if (menuNuevaPauta) menuNuevaPauta.click();
   });
 }
 
-function actualizarTodo() {
+async function actualizarTodo() {
   let agente = localStorage.getItem("usuarioActual");
   const nombreUsuario = document.getElementById("user-name");
   if (nombreUsuario) {
     nombreUsuario.textContent = agente ? JSON.parse(agente).usuario : "Invitado";
+  }
+
+  try {
+    await cargarDatosBD();
+  } catch (error) {
+    alert(error.message);
   }
 
   completarResponsableActual();

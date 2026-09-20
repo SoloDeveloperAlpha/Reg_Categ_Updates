@@ -74,7 +74,8 @@
 
                     <nav class="nav nav-pills flex-column p-3 gap-2">
                         <button class="menu-item nav-link active text-start text-white" data-section="dashboard">📊 Dashboard</button>
-                        <button class="menu-item nav-link text-start text-white" data-section="pautas">📋 Pautas</button>
+                        <button class="menu-item nav-link text-start text-white" data-section="pautas">✅ Pautas</button>
+                        <button class="menu-item nav-link text-start text-white" data-section="nueva-pauta">📝 Nueva pauta</button>
                         <button class="menu-item nav-link text-start text-white" data-section="actualizacion">➕ Nueva actualización</button>
                         <button class="menu-item nav-link text-start text-white" data-section="historial">🕒 Historial</button>
                     </nav>
@@ -145,14 +146,6 @@
                                         <label for="buscar-pauta" class="form-label">Buscar pauta</label>
                                         <input type="text" id="buscar-pauta" class="form-control" placeholder="Buscar pauta...">
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="filtro-estado" class="form-label">Estado</label>
-                                        <select id="filtro-estado" class="form-select">
-                                            <option value="todos">Todas</option>
-                                            <option value="activa">Activas</option>
-                                            <option value="inactiva">Inactivas</option>
-                                        </select>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -165,15 +158,45 @@
                                             <tr>
                                                 <th>Nombre</th>
                                                 <th>Categoría</th>
-                                                <th>Versión</th>
                                                 <th>Última actualización</th>
-                                                <th>Estado</th>
+                                                <th>Auditor</th>
                                                 <th>Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tabla-pautas"></tbody>
                                     </table>
                                 </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="nueva-pauta" class="section d-none">
+                        <div class="card shadow-sm">
+                            <div class="card-body p-4">
+                                <form id="form-nueva-pauta">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="nueva-pauta-categoria" class="form-label">Categoría</label>
+                                            <select id="nueva-pauta-categoria" class="form-select" required>
+                                                <option value="">Seleccionar categoría</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="nueva-pauta-nombre" class="form-label">Nombre de la pauta</label>
+                                            <input type="text" id="nueva-pauta-nombre" class="form-control" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <label for="nueva-pauta-descripcion" class="form-label">Detalle de la pauta</label>
+                                        <textarea id="nueva-pauta-descripcion" class="form-control" rows="6" required></textarea>
+                                    </div>
+
+                                    <div class="d-flex gap-2 mt-4">
+                                        <button type="submit" class="btn btn-primary">Guardar pauta</button>
+                                        <button type="reset" class="btn btn-secondary">Limpiar</button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </section>
@@ -185,30 +208,27 @@
                                 <form id="form-actualizacion">
                                     <div class="row g-3">
                                         <div class="col-md-6">
+                                            <label for="pauta-categoria" class="form-label">Categoría de pauta</label>
+                                            <select id="pauta-categoria" class="form-select" required>
+                                                <option value="">Seleccionar categoría</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-6">
                                             <label for="pauta-select" class="form-label">Pauta</label>
-                                            <select id="pauta-select" class="form-select" required>
+                                            <select id="pauta-select" class="form-select" required disabled>
                                                 <option value="">Seleccionar pauta</option>
                                             </select>
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label for="fecha" class="form-label">Fecha de actualización</label>
-                                            <input type="date" id="fecha" class="form-control" required>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <label for="responsable" class="form-label">Responsable</label>
+                                            <label for="responsable" class="form-label">Auditor</label>
                                             <input type="text" id="responsable" class="form-control" readonly disabled>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <label for="version" class="form-label">Nueva versión</label>
-                                            <input type="text" id="version" class="form-control" placeholder="Ej: 1.2" required>
                                         </div>
                                     </div>
 
                                     <div class="mt-4">
-                                        <label for="cambio" class="form-label">Cambio realizado</label>
+                                        <label for="cambio" class="form-label">Nuevo detalle de la pauta</label>
                                         <textarea id="cambio" class="form-control" rows="5" placeholder="Describe exactamente qué cambió..." required></textarea>
                                     </div>
 
@@ -251,6 +271,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/pautas.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
