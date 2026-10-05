@@ -28,13 +28,15 @@
             </aside>
 
             <main class="col-md-9 col-lg-10 p-0 h-100 d-flex flex-column overflow-hidden">
-                <header class="bg-white border-bottom p-4 d-flex justify-content-between align-items-start gap-3 flex-shrink-0">
+                <header class="bg-white border-bottom p-4 d-flex justify-content-between align-items-center gap-3 flex-wrap flex-shrink-0">
                     <div>
                         <h1 id="page-title" class="h3 mb-1">Dashboard</h1>
                         <p class="text-muted mb-0">Centro de control de políticas y pautas</p>
                     </div>
-                    <h3 class="text-primary" id="user-name"></h3>
-                    <button id="cerrar-sesion" type="button" class="btn btn-outline-danger">Cerrar sesión</button>
+                    <div class="d-flex align-items-center gap-2 ms-auto">
+                        <span id="user-name" class="btn btn-primary text-nowrap mb-0" aria-live="polite"></span>
+                        <button id="cerrar-sesion" type="button" class="btn btn-outline-danger">Cerrar sesión</button>
+                    </div>
                 </header>
 
                 <div class="container-fluid p-4 flex-grow-1 overflow-auto">

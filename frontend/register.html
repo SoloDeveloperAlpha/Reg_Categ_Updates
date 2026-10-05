@@ -6,52 +6,79 @@
     <title>Bitácora - Registrarse</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="bg-dark">
-    <div class="container">
-        <div class="row justify-content-center align-items-center min-vh-100">
-            <div class="col-12 col-sm-10 col-md-6 col-lg-4">
-                <div class="card shadow-sm border-0">
-                    <div class="card-body p-4">
-                        <div class="text-center mb-4">
-                            <h1 class="h3 fw-bold">Registrarse</h1>
-                        </div>
+<body>
+    <main class="container-fluid p-0">
+        <div class="row g-0 min-vh-100">
+            <section class="col-md-7 d-none d-md-flex position-relative align-items-end overflow-hidden bg-dark text-white p-5" aria-label="Panel de Bitácora">
+                <img src="images/fondo_login.jpg" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover" alt="" aria-hidden="true">
+                <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"></div>
+                <div class="position-relative">
+                    <p class="text-info fw-semibold text-uppercase small mb-3">Gestión y seguimiento</p>
+                    <h2 class="display-3 fw-normal mb-3">Bitácora</h2>
+                    <p class="fs-5 text-white-50 mb-0">Un espacio para mantener cada actualización en curso y cada decisión en perspectiva.</p>
+                </div>
+            </section>
 
-                        <form id="form-register">
-                            <div class="mb-3">
-                                <label for="register-usuario" class="form-label">Usuario</label>
-                                <input type="text" class="form-control" id="register-usuario" placeholder="Ingrese un usuario" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="register-email" class="form-label">Correo electrónico</label>
-                                <input type="email" class="form-control" id="register-email" placeholder="Ingrese su correo" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="register-contrasena" class="form-label">Contraseña</label>
-                                <input type="password" class="form-control" id="register-contrasena" placeholder="Ingrese una contraseña" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="register-confirmar" class="form-label">Confirmar contraseña</label>
-                                <input type="password" class="form-control" id="register-confirmar" placeholder="Repita la contraseña" required>
-                            </div>
-
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-success">Crear cuenta</button>
-                                <a href="/login" class="btn btn-outline-secondary">Volver a iniciar sesión</a>
-                            </div>
-
-                            <div id="mensaje-register" class="alert alert-success mt-3 d-none" role="alert"></div>
-                            <div id="mensaje-register-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
-                        </form>
+            <div class="ratio ratio-21x9 d-md-none position-relative bg-dark">
+                <img src="images/fondo_login.jpg" class="object-fit-cover" alt="" aria-hidden="true">
+                <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"></div>
+                <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-end p-4 text-white">
+                    <div>
+                        <p class="text-info fw-semibold text-uppercase small mb-2">Gestión y seguimiento</p>
+                        <h2 class="fs-1 fw-normal mb-0">Bitácora</h2>
                     </div>
                 </div>
-
-                <p class="text-center text-muted small mt-3">© 2026 Bitácora</p>
             </div>
+
+            <section class="col-12 col-md-5 d-flex align-items-center justify-content-center bg-body-tertiary px-4 py-5 px-md-5" aria-labelledby="register-title">
+                <div class="w-100">
+                    <div class="row justify-content-center">
+                        <div class="col-12 col-xl-9">
+                            <a class="d-inline-block fs-3 text-dark text-decoration-none mb-5" href="/" aria-label="Bitácora, inicio">Bitácora</a>
+
+                            <div class="mb-4">
+                                <p class="text-primary fw-semibold text-uppercase small mb-2">Crea tu cuenta</p>
+                                <h1 id="register-title" class="display-6 mb-2">Registrarse</h1>
+                                <p class="text-body-secondary mb-0">Completa tus datos para comenzar.</p>
+                            </div>
+
+                            <form id="form-register">
+                                <div class="mb-3">
+                                    <label for="register-usuario" class="form-label">Usuario</label>
+                                    <input type="text" class="form-control form-control-lg" id="register-usuario" placeholder="Ingrese un usuario" autocomplete="username" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="register-email" class="form-label">Correo electrónico</label>
+                                    <input type="email" class="form-control form-control-lg" id="register-email" placeholder="Ingrese su correo" autocomplete="email" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="register-contrasena" class="form-label">Contraseña</label>
+                                    <input type="password" class="form-control form-control-lg" id="register-contrasena" placeholder="Ingrese una contraseña" autocomplete="new-password" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="register-confirmar" class="form-label">Confirmar contraseña</label>
+                                    <input type="password" class="form-control form-control-lg" id="register-confirmar" placeholder="Repita la contraseña" autocomplete="new-password" required>
+                                </div>
+
+                                <div class="d-grid gap-2 mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">Crear cuenta</button>
+                                    <a href="/login" id="volver-login" class="btn btn-outline-secondary">Volver a iniciar sesión</a>
+                                </div>
+
+                                <div id="mensaje-register" class="alert alert-success mt-3 d-none" role="alert"></div>
+                                <div id="mensaje-register-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+                            </form>
+
+                            <p class="text-body-secondary small mt-5 mb-0">© 2026 Bitácora</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
-    </div>
+    </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/register.js"></script>
