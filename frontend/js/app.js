@@ -1,38 +1,8 @@
-/* ========================================= */
-/* DATOS INICIALES */
-/* ========================================= */
-
-function normalizarFecha(fecha) {
-  if (!fecha) return new Date().toISOString().slice(0, 10);
-
-  const partes = fecha.split("-");
-  if (partes.length === 3 && partes[0].length === 2) {
-    return `${partes[2]}-${partes[1]}-${partes[0]}`;
-  }
-
-  return fecha;
-}
-
-function obtenerDescripcion(contenido) {
-  return contenido.Descripcion || contenido.Conclusion || contenido.Detalle ||
-    (contenido.Procesos ? JSON.stringify(contenido.Procesos) : "");
-}
-
-function crearPautasIniciales() {
-  return Object.entries(datos).flatMap(([categoria, elementos], categoriaIndex) =>
-    Object.entries(elementos).map(([clave, contenido], elementoIndex) => ({
-      id: (categoriaIndex + 1) * 100 + elementoIndex + 1,
-      nombre: contenido.name || contenido.title || clave,
-      categoria,
-      fecha: normalizarFecha(contenido.fecha),
-      responsable: "",
-      descripcion: obtenerDescripcion(contenido)
-    }))
-  );
-}
-
-let pautas = crearPautasIniciales();
+let pautas = [];
 let actualizaciones = [];
+let pautaPendienteEliminar = null;
+let botonPendienteEliminar = null;
+let busquedaPautasEjecutada = false;
 
 async function cargarDatosBD() {
   const [respuestaPautas, respuestaActualizaciones] = await Promise.all([
@@ -47,30 +17,12 @@ async function cargarDatosBD() {
   const pautasBD = await respuestaPautas.json();
   actualizaciones = await respuestaActualizaciones.json();
 
-  const catalogo = crearPautasIniciales();
-  const nombresCatalogo = new Set(catalogo.map((pauta) => `${pauta.categoria}|${pauta.nombre}`));
-
-  pautas = catalogo.map((pauta) => {
-    const pautaBD = pautasBD.find((item) =>
-      item.nombre === pauta.nombre && item.categoria === pauta.categoria
-    );
-
-    return pautaBD
-      ? {
-        ...pauta,
-        bdId: pautaBD.id,
-        fecha: pautaBD.fecha,
-        responsable: pautaBD.responsable,
-        descripcion: pautaBD.descripcion || pauta.descripcion
-      }
-      : pauta;
-  });
-
-  pautasBD.forEach((pautaBD) => {
-    if (!nombresCatalogo.has(`${pautaBD.categoria}|${pautaBD.nombre}`)) {
-      pautas.push({ ...pautaBD, bdId: pautaBD.id });
-    }
-  });
+  pautas = pautasBD.map((pauta) => ({
+    ...pauta,
+    id: Number(pauta.id),
+    bdId: Number(pauta.id),
+    procesos: Array.isArray(pauta.procesos) ? pauta.procesos : []
+  }));
 }
 
 function obtenerUsuarioActual() {
@@ -98,6 +50,7 @@ const logoutButton = document.getElementById("cerrar-sesion");
 
 if (logoutButton) {
   logoutButton.addEventListener("click", () => {
+    localStorage.removeItem("usuarioActual");
     window.location.href = "/login";
   });
 }
@@ -134,6 +87,16 @@ menuItems.forEach((item) => {
     }
 
     actualizarTitulo(sectionId);
+
+    const menuDesplegable = document.getElementById("sidebar-menu-content");
+    if (menuDesplegable && window.matchMedia("(max-width: 767.98px)").matches) {
+      const ocultarMenu = () => bootstrap.Collapse.getOrCreateInstance(menuDesplegable).hide();
+      if (menuDesplegable.classList.contains("collapsing")) {
+        menuDesplegable.addEventListener("shown.bs.collapse", ocultarMenu, { once: true });
+      } else {
+        ocultarMenu();
+      }
+    }
   });
 });
 
@@ -181,21 +144,35 @@ function mostrarUltimosCambios() {
   }).join("");
 }
 
-function mostrarPautas() {
+function mostrarPautas(busquedaSolicitada = false) {
   const tabla = document.getElementById("tabla-pautas");
   const inputBusqueda = document.getElementById("buscar-pauta");
+  const filtroCategoria = document.getElementById("filtro-categoria-pauta");
+
+  if (busquedaSolicitada) busquedaPautasEjecutada = true;
 
   const textoBusqueda = (inputBusqueda?.value || "").toLowerCase().trim();
+  const categoriaSeleccionada = filtroCategoria?.value || "";
+
+  tabla.innerHTML = "";
+  if (!textoBusqueda && !categoriaSeleccionada && !busquedaPautasEjecutada) {
+    tabla.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted py-4">Selecciona una categoría o escribe una búsqueda y pulsa Buscar para ver las pautas.</td>
+      </tr>
+    `;
+    actualizarSelectPautas();
+    return;
+  }
 
   const pautasFiltradas = pautas.filter((pauta) => {
     const coincideTexto =
       pauta.nombre.toLowerCase().includes(textoBusqueda) ||
       pauta.categoria.toLowerCase().includes(textoBusqueda);
+    const coincideCategoria = !categoriaSeleccionada || pauta.categoria === categoriaSeleccionada;
 
-    return coincideTexto;
+    return coincideTexto && coincideCategoria;
   });
-
-  tabla.innerHTML = "";
 
   if (pautasFiltradas.length === 0) {
     tabla.innerHTML = `
@@ -203,20 +180,49 @@ function mostrarPautas() {
         <td colspan="5" class="text-center text-muted py-4">No se encontraron pautas con los filtros actuales.</td>
       </tr>
     `;
+    actualizarSelectPautas();
     return;
   }
 
   pautasFiltradas.forEach((pauta) => {
     const fila = document.createElement("tr");
-    fila.innerHTML = `
-      <td><strong>${pauta.nombre}</strong></td>
-      <td>${pauta.categoria}</td>
-      <td>${pauta.fecha}</td>
-      <td>${pauta.responsable || "-"}</td>
-      <td>
-        <button type="button" class="btn btn-sm btn-outline-primary" onclick="verHistorial(${pauta.bdId || pauta.id})">Ver historial</button>
-      </td>
-    `;
+    const nombre = document.createElement("td");
+    const nombreEnNegrita = document.createElement("strong");
+    nombreEnNegrita.textContent = pauta.nombre;
+    nombre.appendChild(nombreEnNegrita);
+
+    const categoria = document.createElement("td");
+    categoria.textContent = pauta.categoria;
+
+    const fecha = document.createElement("td");
+    fecha.textContent = pauta.fecha || "-";
+
+    const responsable = document.createElement("td");
+    responsable.textContent = pauta.responsable || "-";
+
+    const acciones = document.createElement("td");
+    const botonesAccion = document.createElement("div");
+    botonesAccion.className = "d-flex flex-wrap gap-2";
+
+    const botonHistorial = document.createElement("button");
+    botonHistorial.type = "button";
+    botonHistorial.className = "btn btn-sm btn-outline-primary";
+    botonHistorial.innerHTML = '<i class="bi bi-clock-history" aria-hidden="true"></i>';
+    botonHistorial.title = `Ver historial de ${pauta.nombre}`;
+    botonHistorial.setAttribute("aria-label", `Ver historial de ${pauta.nombre}`);
+    botonHistorial.addEventListener("click", () => verHistorial(pauta.bdId || pauta.id));
+
+    const botonEliminar = document.createElement("button");
+    botonEliminar.type = "button";
+    botonEliminar.className = "btn btn-sm btn-outline-danger";
+    botonEliminar.title = `Eliminar pauta ${pauta.nombre}`;
+    botonEliminar.setAttribute("aria-label", `Eliminar pauta ${pauta.nombre}`);
+    botonEliminar.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
+    botonEliminar.addEventListener("click", () => solicitarEliminacionPauta(pauta, botonEliminar));
+
+    botonesAccion.append(botonHistorial, botonEliminar);
+    acciones.appendChild(botonesAccion);
+    fila.append(nombre, categoria, fecha, responsable, acciones);
 
     tabla.appendChild(fila);
   });
@@ -224,26 +230,92 @@ function mostrarPautas() {
   actualizarSelectPautas();
 }
 
+function solicitarEliminacionPauta(pauta, boton) {
+  pautaPendienteEliminar = pauta;
+  botonPendienteEliminar = boton;
+  document.getElementById("nombre-pauta-eliminar").textContent = pauta.nombre;
+  bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("confirmar-eliminar-pauta-modal")
+  ).show();
+}
+
+async function eliminarPauta(pauta, boton) {
+  boton.disabled = true;
+  try {
+    const id = pauta.bdId || pauta.id;
+    const respuesta = await fetch(`/api/pautas/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+    const resultado = await respuesta.json().catch(() => ({}));
+
+    if (!respuesta.ok) {
+      throw new Error(resultado.mensaje || "No se pudo eliminar la pauta.");
+    }
+
+    await cargarDatosBD();
+    mostrarPautas();
+    actualizarDashboard();
+    mostrarHistorial();
+  } catch (error) {
+    alert(error.message);
+    boton.disabled = false;
+  }
+}
+
+const modalEliminarPauta = document.getElementById("confirmar-eliminar-pauta-modal");
+const botonConfirmarEliminarPauta = document.getElementById("confirmar-eliminar-pauta");
+
+if (modalEliminarPauta) {
+  modalEliminarPauta.addEventListener("hidden.bs.modal", () => {
+    pautaPendienteEliminar = null;
+    botonPendienteEliminar = null;
+  });
+}
+
+if (botonConfirmarEliminarPauta) {
+  botonConfirmarEliminarPauta.addEventListener("click", async () => {
+    const pauta = pautaPendienteEliminar;
+    const boton = botonPendienteEliminar;
+    if (!pauta || !boton) return;
+
+    pautaPendienteEliminar = null;
+    botonPendienteEliminar = null;
+    bootstrap.Modal.getOrCreateInstance(modalEliminarPauta).hide();
+    await eliminarPauta(pauta, boton);
+  });
+}
+
 function actualizarSelectPautas() {
+  const categorias = [...new Set(pautas.map((pauta) => pauta.categoria))];
+  const filtroCategoria = document.getElementById("filtro-categoria-pauta");
+  if (filtroCategoria) {
+    const categoriaSeleccionada = filtroCategoria.value;
+    filtroCategoria.replaceChildren(new Option("Todas las categorías", ""));
+    categorias.forEach((categoria) => filtroCategoria.add(new Option(categoria, categoria)));
+    filtroCategoria.value = categorias.includes(categoriaSeleccionada) ? categoriaSeleccionada : "";
+  }
+
   const categoriaSelect = document.getElementById("pauta-categoria");
   const pautaSelect = document.getElementById("pauta-select");
-  if (!categoriaSelect || !pautaSelect) return;
-
-  categoriaSelect.innerHTML = '<option value="">Seleccionar categoría</option>';
-  Object.keys(datos).forEach((categoria) => {
-    categoriaSelect.innerHTML += `<option value="${categoria}">${categoria}</option>`;
-  });
+  if (categoriaSelect) {
+    const categoriaSeleccionada = categoriaSelect.value;
+    categoriaSelect.replaceChildren(new Option("Seleccionar categoría", ""));
+    categorias.forEach((categoria) => categoriaSelect.add(new Option(categoria, categoria)));
+    categoriaSelect.value = categorias.includes(categoriaSeleccionada) ? categoriaSeleccionada : "";
+  }
 
   const nuevaCategoriaSelect = document.getElementById("nueva-pauta-categoria");
   if (nuevaCategoriaSelect) {
-    nuevaCategoriaSelect.innerHTML = '<option value="">Seleccionar categoría</option>';
-    Object.keys(datos).forEach((categoria) => {
-      nuevaCategoriaSelect.innerHTML += `<option value="${categoria}">${categoria}</option>`;
-    });
+    const categoriaSeleccionada = nuevaCategoriaSelect.value;
+    nuevaCategoriaSelect.replaceChildren(new Option("Seleccionar categoría", ""));
+    categorias.forEach((categoria) => nuevaCategoriaSelect.add(new Option(categoria, categoria)));
+    nuevaCategoriaSelect.value = categorias.includes(categoriaSeleccionada) ? categoriaSeleccionada : "";
   }
 
-  pautaSelect.innerHTML = '<option value="">Seleccionar pauta</option>';
-  pautaSelect.disabled = true;
+  if (pautaSelect) {
+    pautaSelect.replaceChildren(new Option("Seleccionar pauta", ""));
+    pautaSelect.disabled = true;
+  }
 
   actualizarSelectHistorial();
 }
@@ -252,26 +324,36 @@ function actualizarSelectHijos(categoria) {
   const pautaSelect = document.getElementById("pauta-select");
   if (!pautaSelect) return;
 
-  pautaSelect.innerHTML = '<option value="">Seleccionar pauta</option>';
-  pautaSelect.disabled = !categoria;
-  if (!categoria || !datos[categoria]) return;
+  pautaSelect.replaceChildren(new Option("Seleccionar pauta", ""));
+  const cambio = document.getElementById("cambio");
+  if (cambio) cambio.value = "";
+  const pautasCategoria = pautas.filter((pauta) => pauta.categoria === categoria);
+  pautaSelect.disabled = pautasCategoria.length === 0;
 
-  Object.entries(datos[categoria]).forEach(([clave, contenido]) => {
-    const nombre = contenido.name || contenido.title || clave;
-    pautaSelect.innerHTML += `<option value="${clave}">${nombre}</option>`;
+  pautasCategoria.forEach((pauta) => {
+    pautaSelect.add(new Option(pauta.nombre, pauta.bdId || pauta.id));
   });
 }
 
-function cargarDetallePautaSeleccionada() {
-  const categoria = document.getElementById("pauta-categoria")?.value;
-  const clave = document.getElementById("pauta-select")?.value;
-  const cambio = document.getElementById("cambio");
-  if (!categoria || !clave || !cambio) return;
+function obtenerDetallePauta(pauta) {
+  const resumenProcesos = pauta.procesos.map((proceso) => [
+    proceso.nombre,
+    ...proceso.pasos.map((paso, index) => `${index + 1}. ${paso}`),
+    proceso.nota ? `Nota: ${proceso.nota}` : ""
+  ].filter(Boolean).join("\n")).join("\n\n");
 
-  const pautaId = (Object.keys(datos).indexOf(categoria) + 1) * 100 +
-    Object.keys(datos[categoria]).indexOf(clave) + 1;
-  const pauta = pautas.find((item) => item.id === pautaId);
-  if (pauta) cambio.value = pauta.descripcion || "";
+  return [pauta.descripcion, pauta.conclusion, resumenProcesos]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function cargarDetallePautaSeleccionada() {
+  const pautaId = Number(document.getElementById("pauta-select")?.value);
+  const cambio = document.getElementById("cambio");
+  if (!pautaId || !cambio) return;
+
+  const pauta = pautas.find((item) => Number(item.bdId || item.id) === pautaId);
+  if (pauta) cambio.value = obtenerDetallePauta(pauta);
 }
 
 function actualizarSelectHistorial() {
@@ -317,15 +399,15 @@ if (formulario) {
     event.preventDefault();
 
     const categoria = categoriaSelect.value;
-    const clave = document.getElementById("pauta-select").value;
-    const pautaId = (Object.keys(datos).indexOf(categoria) + 1) * 100 +
-      Object.keys(datos[categoria] || {}).indexOf(clave) + 1;
-    if (!categoria || !clave || pautaId <= 0) {
+    const pautaId = Number(document.getElementById("pauta-select").value);
+    if (!categoria || !pautaId) {
       alert("Debes seleccionar una pauta.");
       return;
     }
 
-    const pauta = pautas.find((item) => item.id === pautaId);
+    const pauta = pautas.find((item) =>
+      Number(item.bdId || item.id) === pautaId && item.categoria === categoria
+    );
     if (!pauta) {
       alert("La pauta seleccionada no está disponible.");
       return;
@@ -488,9 +570,28 @@ if (historialSelect) {
   });
 }
 
-const buscarPauta = document.getElementById("buscar-pauta");
-if (buscarPauta) {
-  buscarPauta.addEventListener("input", () => mostrarPautas());
+const filtroPautasForm = document.getElementById("form-filtro-pautas");
+const btnBuscarPautas = document.getElementById("btn-buscar-pauta");
+const buscarPautaInput = document.getElementById("buscar-pauta");
+
+if (btnBuscarPautas) {
+  btnBuscarPautas.addEventListener("click", () => mostrarPautas(true));
+}
+
+if (filtroPautasForm) {
+  filtroPautasForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    mostrarPautas(true);
+  });
+}
+
+if (buscarPautaInput) {
+  buscarPautaInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      mostrarPautas(true);
+    }
+  });
 }
 
 const btnNuevaPauta = document.getElementById("btn-nueva-pauta");
@@ -502,10 +603,17 @@ if (btnNuevaPauta) {
 }
 
 async function actualizarTodo() {
-  let agente = localStorage.getItem("usuarioActual");
-  const nombreUsuario = document.getElementById("user-name");
-  if (nombreUsuario) {
-    nombreUsuario.textContent = agente ? JSON.parse(agente).usuario : "Invitado";
+  const usuarioActual = obtenerUsuarioActual();
+  const nombreUsuario = typeof usuarioActual?.usuario === "string"
+    ? usuarioActual.usuario.trim()
+    : "";
+  const avatarUsuario = document.getElementById("user-avatar");
+  if (avatarUsuario) {
+    avatarUsuario.textContent = Array.from(nombreUsuario)[0]?.toLocaleUpperCase("es") || "";
+    avatarUsuario.setAttribute(
+      "aria-label",
+      nombreUsuario ? `Inicial de ${nombreUsuario}` : "Usuario no identificado"
+    );
   }
 
   try {

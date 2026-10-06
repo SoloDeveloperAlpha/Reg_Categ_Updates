@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitácora - Registrarse</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/auth.css" rel="stylesheet">
 </head>
-<body>
+<body class="auth-page">
     <main class="container-fluid p-0">
-        <div class="row g-0 min-vh-100">
-            <section class="col-md-7 d-none d-md-flex position-relative align-items-end overflow-hidden bg-dark text-white p-5" aria-label="Panel de Bitácora">
+        <div class="row g-0 auth-layout">
+            <section class="col-md-7 d-none d-md-flex position-relative align-items-end overflow-hidden bg-dark text-white auth-hero" aria-label="Panel de Bitácora">
                 <img src="images/fondo_login.jpg" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover" alt="" aria-hidden="true">
                 <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"></div>
                 <div class="position-relative">
@@ -19,10 +20,10 @@
                 </div>
             </section>
 
-            <div class="ratio ratio-21x9 d-md-none position-relative bg-dark">
-                <img src="images/fondo_login.jpg" class="object-fit-cover" alt="" aria-hidden="true">
+            <div class="col-12 d-md-none position-relative bg-dark auth-mobile-hero">
+                <img src="images/fondo_login.jpg" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover" alt="" aria-hidden="true">
                 <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"></div>
-                <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-end p-4 text-white">
+                <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-end auth-mobile-hero-content text-white">
                     <div>
                         <p class="text-info fw-semibold text-uppercase small mb-2">Gestión y seguimiento</p>
                         <h2 class="fs-1 fw-normal mb-0">Bitácora</h2>
@@ -30,19 +31,19 @@
                 </div>
             </div>
 
-            <section class="col-12 col-md-5 d-flex align-items-center justify-content-center bg-body-tertiary px-4 py-5 px-md-5" aria-labelledby="register-title">
+            <section class="col-12 col-md-5 d-flex align-items-center justify-content-center bg-body-tertiary auth-panel" aria-labelledby="register-title">
                 <div class="w-100">
                     <div class="row justify-content-center">
-                        <div class="col-12 col-xl-9">
-                            <a class="d-inline-block fs-3 text-dark text-decoration-none mb-5" href="/" aria-label="Bitácora, inicio">Bitácora</a>
+                        <div class="col-12 col-xl-9 auth-content">
+                            <a class="d-inline-block fs-3 text-dark text-decoration-none auth-brand" href="/" aria-label="Bitácora, inicio">Bitácora</a>
 
-                            <div class="mb-4">
+                            <div class="mb-4 auth-intro">
                                 <p class="text-primary fw-semibold text-uppercase small mb-2">Crea tu cuenta</p>
                                 <h1 id="register-title" class="display-6 mb-2">Registrarse</h1>
                                 <p class="text-body-secondary mb-0">Completa tus datos para comenzar.</p>
                             </div>
 
-                            <form id="form-register">
+                            <form id="form-register" class="auth-form">
                                 <div class="mb-3">
                                     <label for="register-usuario" class="form-label">Usuario</label>
                                     <input type="text" class="form-control form-control-lg" id="register-usuario" placeholder="Ingrese un usuario" autocomplete="username" required>
@@ -72,7 +73,7 @@
                                 <div id="mensaje-register-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
                             </form>
 
-                            <p class="text-body-secondary small mt-5 mb-0">© 2026 Bitácora</p>
+                            <p class="text-body-secondary small mt-5 mb-0 auth-footer">© 2026 Bitácora</p>
                         </div>
                     </div>
                 </div>

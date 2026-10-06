@@ -1,0 +1,193 @@
+.app-page {
+    min-width: 0;
+    height: 100vh;
+    height: 100svh;
+    overflow: hidden;
+}
+
+.app-shell {
+    height: 100%;
+}
+
+.app-layout {
+    display: grid !important;
+    grid-template-columns: clamp(14rem, 18vw, 18rem) minmax(0, 1fr);
+    height: 100%;
+    margin: 0 !important;
+}
+
+.app-layout > * {
+    width: auto !important;
+    max-width: none;
+    min-width: 0;
+    padding-inline: 0;
+}
+
+.app-sidebar,
+.app-main {
+    min-width: 0;
+}
+
+.app-sidebar {
+    height: 100%;
+}
+
+.app-sidebar-layout {
+    min-height: 0;
+    height: 100%;
+}
+
+.app-sidebar-menu {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.app-sidebar-brand {
+    padding: clamp(1rem, 2vw, 1.5rem) !important;
+}
+
+.app-sidebar nav {
+    min-height: 0;
+}
+
+.app-sidebar-footer {
+    flex: 0 0 auto;
+}
+
+.app-main {
+    height: 100%;
+}
+
+.app-header,
+.app-content,
+.section {
+    min-width: 0;
+}
+
+.user-avatar {
+    flex: 0 0 auto;
+    width: clamp(2.25rem, 4vw, 3rem);
+    height: clamp(2.25rem, 4vw, 3rem);
+}
+
+@media (max-width: 767.98px) {
+    .app-page {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100svh;
+        overflow-x: hidden;
+        overflow-y: auto !important;
+    }
+
+    .app-shell {
+        height: auto !important;
+    }
+
+    .app-layout {
+        display: flex !important;
+        flex-direction: column;
+        flex-wrap: nowrap !important;
+        height: auto !important;
+        min-height: 100vh;
+        min-height: 100svh;
+    }
+
+    .app-layout > * {
+        flex-shrink: 0;
+        width: 100% !important;
+    }
+
+    .app-sidebar {
+        height: auto !important;
+        overflow: visible !important;
+        border-bottom: 1px solid var(--bs-secondary);
+    }
+
+    .app-sidebar-layout {
+        display: flex !important;
+        flex-direction: column;
+        height: auto !important;
+    }
+
+    .app-sidebar-brand {
+        width: 100%;
+        padding: 0.6rem 0.85rem !important;
+        border-bottom: 0 !important;
+    }
+
+    .app-sidebar-brand h2 {
+        font-size: 1.1rem;
+    }
+
+    .app-sidebar-brand span {
+        display: none;
+    }
+
+    .app-sidebar-menu.show {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-sidebar nav {
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        gap: 0.25rem !important;
+        overflow: visible !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+
+    .app-sidebar nav .nav-link {
+        flex: 0 0 auto;
+        padding: 0.5rem 0.65rem;
+        white-space: nowrap;
+    }
+
+    .app-sidebar-footer {
+        padding: 0.5rem 0.75rem 0.75rem !important;
+        border-top: 0 !important;
+    }
+
+    .app-sidebar-footer .btn {
+        width: 100% !important;
+        padding: 0.45rem 0.55rem;
+        font-size: 0.825rem;
+        white-space: nowrap;
+    }
+
+    .app-main {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        min-height: 0;
+        overflow: visible !important;
+    }
+
+    .app-header {
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
+        padding: 0.8rem 1rem !important;
+    }
+
+    .app-header > div:first-child {
+        min-width: 0;
+    }
+
+    .app-header h1 {
+        font-size: clamp(1.15rem, 5vw, 1.5rem) !important;
+    }
+
+    .app-header p {
+        font-size: 0.8rem;
+    }
+
+    .app-content {
+        overflow: visible !important;
+        padding: clamp(0.75rem, 4vw, 1.25rem) !important;
+    }
+
+    .app-content .card-body.p-4 {
+        padding: 1rem !important;
+    }
+}

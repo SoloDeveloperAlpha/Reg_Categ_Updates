@@ -55,8 +55,8 @@ function createActualizacion(req, res) {
 
     const completar = (idPauta) => {
       database.run(
-        'UPDATE pautas SET fecha = ?, responsable = ?, descripcion = ? WHERE id_pauta = ?',
-        [fecha, responsable.trim(), cambio.trim(), idPauta],
+        'UPDATE pautas SET fecha = ?, responsable = ? WHERE id_pauta = ?',
+        [fecha, responsable.trim(), idPauta],
         (updateError) => {
           if (updateError) return cancelar(updateError);
 

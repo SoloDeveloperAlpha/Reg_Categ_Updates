@@ -19,9 +19,11 @@ CREATE TABLE IF NOT EXISTS pautas (
     id_pauta INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
     categoria TEXT NOT NULL,
-    fecha TEXT NOT NULL DEFAULT (DATE('now')),
+    fecha TEXT NOT NULL DEFAULT '',
     responsable TEXT NOT NULL DEFAULT '',
-    descripcion TEXT NOT NULL DEFAULT ''
+    descripcion TEXT NOT NULL DEFAULT '',
+    conclusion TEXT NOT NULL DEFAULT '',
+    procesos TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS actualizaciones (

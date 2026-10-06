@@ -1,0 +1,130 @@
+.auth-page {
+    min-height: 100vh;
+    min-height: 100svh;
+}
+
+.auth-layout {
+    min-height: 100vh;
+    min-height: 100svh;
+}
+
+.auth-hero {
+    padding: clamp(1.25rem, 4vw, 4rem) !important;
+}
+
+.auth-hero .display-3 {
+    font-size: clamp(2.25rem, 5vw, 4.5rem);
+}
+
+.auth-hero .fs-5 {
+    font-size: clamp(1rem, 1.5vw, 1.25rem) !important;
+}
+
+.auth-mobile-hero {
+    height: clamp(8rem, 25vh, 15rem);
+    height: clamp(8rem, 25svh, 15rem);
+}
+
+.auth-mobile-hero-content {
+    padding: clamp(1rem, 5vw, 1.5rem);
+}
+
+.auth-mobile-hero h2 {
+    font-size: clamp(1.5rem, 6vw, 2.25rem) !important;
+}
+
+.auth-panel {
+    padding: clamp(1.25rem, 4vh, 3rem) clamp(1rem, 4vw, 4rem) !important;
+}
+
+.auth-content {
+    width: 100%;
+    max-width: 30rem;
+    margin-inline: auto;
+}
+
+.auth-brand {
+    margin-bottom: clamp(1.5rem, 4vh, 3rem) !important;
+    font-size: clamp(1.4rem, 2vw, 1.75rem) !important;
+}
+
+.auth-intro {
+    margin-bottom: clamp(1.25rem, 3vh, 2rem) !important;
+}
+
+.auth-intro h1 {
+    font-size: clamp(1.75rem, 3.5vw, 2.7rem);
+    line-height: 1.1;
+}
+
+.auth-intro p:last-child,
+.auth-form .form-label,
+.auth-form .form-check-label {
+    font-size: clamp(0.9rem, 1.1vw, 1rem);
+}
+
+.auth-form .form-label {
+    margin-bottom: 0.35rem;
+}
+
+.auth-form .mb-3 {
+    margin-bottom: clamp(0.65rem, 1.8vh, 1rem) !important;
+}
+
+.auth-form .form-control {
+    min-height: clamp(2.75rem, 6vh, 3.5rem);
+    padding: 0.55rem clamp(0.75rem, 1.5vw, 1rem);
+    font-size: clamp(1rem, 1.25vw, 1.125rem);
+}
+
+.auth-form .btn-lg {
+    min-height: clamp(2.85rem, 6vh, 3.5rem);
+    padding: 0.55rem 1rem;
+    font-size: clamp(1rem, 1.25vw, 1.125rem);
+}
+
+.auth-form .form-check.mb-4 {
+    margin-bottom: clamp(0.9rem, 2.5vh, 1.5rem) !important;
+}
+
+.auth-form .alert {
+    font-size: clamp(0.875rem, 1vw, 1rem);
+}
+
+.auth-footer {
+    margin-top: clamp(1.5rem, 4vh, 3rem) !important;
+    font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+}
+
+@media (max-width: 767.98px) {
+    .auth-panel {
+        min-height: calc(100vh - clamp(8rem, 25vh, 15rem));
+        min-height: calc(100svh - clamp(8rem, 25svh, 15rem));
+    }
+}
+
+@media (max-height: 700px) and (min-width: 768px) {
+    .auth-panel {
+        padding-block: 0.75rem !important;
+    }
+
+    .auth-brand {
+        margin-bottom: 1rem !important;
+    }
+
+    .auth-intro {
+        margin-bottom: 1rem !important;
+    }
+
+    .auth-form .mb-3 {
+        margin-bottom: 0.5rem !important;
+    }
+
+    .auth-form .form-check.mb-4 {
+        margin-bottom: 0.75rem !important;
+    }
+
+    .auth-footer {
+        margin-top: 1rem !important;
+    }
+}

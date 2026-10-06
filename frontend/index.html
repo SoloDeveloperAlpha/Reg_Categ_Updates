@@ -6,40 +6,55 @@
     <title>Gestor de Políticas y Pautas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="css/app.css" rel="stylesheet">
+    <style>
+        html {
+            font-size: 90%;
+        }
+    </style>
 </head>
-<body class="bg-light vh-100 overflow-hidden">
-    <div class="container-fluid h-100 px-0">
-        <div class="row h-100 g-0 flex-nowrap">
-            <aside class="col-md-3 col-lg-2 bg-dark text-white p-0 h-100 overflow-hidden">
-                <div class="d-flex flex-column h-100">
-                    <div class="p-4 border-bottom border-secondary">
-                        <h2 class="h4 mb-1">Bitácora</h2>
-                        <span class="text-secondary">Control de actualizaciones</span>
+<body class="app-page bg-light">
+    <div class="container-fluid app-shell px-0">
+        <div class="row app-layout g-0">
+            <aside class="app-sidebar bg-dark text-white p-0 overflow-hidden">
+                <div class="app-sidebar-layout d-flex flex-column">
+                    <div class="app-sidebar-brand d-flex align-items-center justify-content-between border-bottom border-secondary">
+                        <div>
+                            <h2 class="h4 mb-1">Bitácora</h2>
+                            <span class="text-secondary">Control de actualizaciones</span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-light d-md-none" data-bs-toggle="collapse" data-bs-target="#sidebar-menu-content" aria-controls="sidebar-menu-content" aria-expanded="false" aria-label="Mostrar u ocultar menú de navegación">
+                            <i class="bi bi-list fs-4" aria-hidden="true"></i>
+                        </button>
                     </div>
 
-                    <nav class="nav nav-pills flex-column p-3 gap-2 flex-grow-1 overflow-auto">
-                        <button class="menu-item nav-link active text-start text-white" data-section="dashboard"><i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>Dashboard</button>
-                        <button class="menu-item nav-link text-start text-white" data-section="pautas"><i class="bi bi-card-checklist me-2" aria-hidden="true"></i>Pautas</button>
-                        <button class="menu-item nav-link text-start text-white" data-section="nueva-pauta"><i class="bi bi-journal-plus me-2" aria-hidden="true"></i>Nueva pauta</button>
-                        <button class="menu-item nav-link text-start text-white" data-section="actualizacion"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Nueva actualización</button>
-                        <button class="menu-item nav-link text-start text-white" data-section="historial"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Historial</button>
-                    </nav>
+                    <div id="sidebar-menu-content" class="collapse app-sidebar-menu d-md-flex">
+                        <nav class="nav nav-pills flex-column p-3 gap-2 flex-grow-1 overflow-auto">
+                            <button class="menu-item nav-link active text-start text-white" data-section="dashboard"><i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>Dashboard</button>
+                            <button class="menu-item nav-link text-start text-white" data-section="pautas"><i class="bi bi-card-checklist me-2" aria-hidden="true"></i>Pautas</button>
+                            <button class="menu-item nav-link text-start text-white" data-section="nueva-pauta"><i class="bi bi-journal-plus me-2" aria-hidden="true"></i>Nueva pauta</button>
+                            <button class="menu-item nav-link text-start text-white" data-section="actualizacion"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Nueva actualización</button>
+                            <button class="menu-item nav-link text-start text-white" data-section="historial"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Historial</button>
+                        </nav>
+                        <div class="app-sidebar-footer p-3 border-top border-secondary">
+                            <button id="cerrar-sesion" type="button" class="btn btn-outline-light w-100"><i class="bi bi-box-arrow-left me-2" aria-hidden="true"></i>Cerrar sesión</button>
+                        </div>
+                    </div>
                 </div>
             </aside>
 
-            <main class="col-md-9 col-lg-10 p-0 h-100 d-flex flex-column overflow-hidden">
-                <header class="bg-white border-bottom p-4 d-flex justify-content-between align-items-center gap-3 flex-wrap flex-shrink-0">
+            <main class="app-main p-0 d-flex flex-column overflow-hidden">
+                <header class="app-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center gap-3 flex-wrap flex-shrink-0">
                     <div>
                         <h1 id="page-title" class="h3 mb-1">Dashboard</h1>
-                        <p class="text-muted mb-0">Centro de control de políticas y pautas</p>
+                        <p id="page-description" class="text-muted mb-0">Centro de control de políticas y pautas</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto">
-                        <span id="user-name" class="btn btn-primary text-nowrap mb-0" aria-live="polite"></span>
-                        <button id="cerrar-sesion" type="button" class="btn btn-outline-danger">Cerrar sesión</button>
+                        <span id="user-avatar" class="user-avatar rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-semibold" role="img" aria-label="Inicial del usuario" aria-live="polite"></span>
                     </div>
                 </header>
 
-                <div class="container-fluid p-4 flex-grow-1 overflow-auto">
+                <div class="app-content container-fluid p-4 flex-grow-1 overflow-auto">
                     <section id="dashboard" class="section active">
                         <div class="row g-4 mb-4">
                             <div class="col-md-4">
@@ -88,12 +103,21 @@
 
                         <div class="card shadow-sm mb-4">
                             <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-8">
-                                        <label for="buscar-pauta" class="form-label">Buscar pauta</label>
-                                        <input type="text" id="buscar-pauta" class="form-control" placeholder="Buscar pauta...">
+                                <form id="form-filtro-pautas" class="row g-3 align-items-end">
+                                    <div class="col-md-4">
+                                        <label for="filtro-categoria-pauta" class="form-label">Categoría</label>
+                                        <select id="filtro-categoria-pauta" class="form-select">
+                                            <option value="">Todas las categorías</option>
+                                        </select>
                                     </div>
-                                </div>
+                                    <div class="col-md-5">
+                                        <label for="buscar-pauta" class="form-label">Buscar pauta</label>
+                                        <input type="search" id="buscar-pauta" class="form-control" placeholder="Escribe el nombre o la categoría">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" id="btn-buscar-pauta" class="btn btn-primary w-100"><i class="bi bi-search me-2" aria-hidden="true"></i>Buscar</button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
 
@@ -214,11 +238,30 @@
                     </section>
                 </div>
             </main>
+
+            <div class="modal fade" id="confirmar-eliminar-pauta-modal" tabindex="-1" aria-labelledby="titulo-confirmar-eliminar-pauta" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title fs-5" id="titulo-confirmar-eliminar-pauta">Confirmar eliminación</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-2">¿Realmente deseas eliminar esta pauta?</p>
+                            <p id="nombre-pauta-eliminar" class="fw-semibold mb-3"></p>
+                            <p class="text-body-secondary small mb-0">Si la pauta tiene actualizaciones registradas, el sistema conservará el historial y no permitirá eliminarla.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" id="confirmar-eliminar-pauta" class="btn btn-danger"><i class="bi bi-trash me-2" aria-hidden="true"></i>Eliminar pauta</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/pautas.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
