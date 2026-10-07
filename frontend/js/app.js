@@ -72,7 +72,7 @@ const sections = document.querySelectorAll(".section");
 const pageTitle = document.getElementById("page-title");
 const pageDescription = document.getElementById("page-description");
 const logoutButton = document.getElementById("cerrar-sesion");
-const openProfileButton = document.getElementById("abrir-perfil");
+const openProfileSettingsButton = document.getElementById("abrir-configuracion-perfil");
 
 function mostrarSeccion(sectionId, menuActivo = null) {
   menuItems.forEach((menu) => menu.classList.remove("active"));
@@ -130,8 +130,8 @@ menuItems.forEach((item) => {
   });
 });
 
-if (openProfileButton) {
-  openProfileButton.addEventListener("click", () => mostrarSeccion("perfil"));
+if (openProfileSettingsButton) {
+  openProfileSettingsButton.addEventListener("click", () => mostrarSeccion("perfil"));
 }
 
 const profileForm = document.getElementById("form-perfil");
@@ -312,9 +312,14 @@ function mostrarPautas(busquedaSolicitada = false) {
   pautasFiltradas.forEach((pauta) => {
     const fila = document.createElement("tr");
     const nombre = document.createElement("td");
-    const nombreEnNegrita = document.createElement("strong");
-    nombreEnNegrita.textContent = pauta.nombre;
-    nombre.appendChild(nombreEnNegrita);
+    const botonDetalle = document.createElement("button");
+    botonDetalle.type = "button";
+    botonDetalle.className = "btn p-0 border-0 bg-transparent text-body text-start fw-semibold";
+    botonDetalle.textContent = pauta.nombre;
+    botonDetalle.setAttribute("aria-label", `Consultar pauta ${pauta.nombre}`);
+    botonDetalle.setAttribute("aria-haspopup", "dialog");
+    botonDetalle.addEventListener("click", () => mostrarDetallePauta(pauta));
+    nombre.appendChild(botonDetalle);
 
     const categoria = document.createElement("td");
     categoria.textContent = pauta.categoria;
@@ -353,6 +358,61 @@ function mostrarPautas(busquedaSolicitada = false) {
   });
 
   actualizarSelectPautas();
+}
+
+function mostrarDetallePauta(pauta) {
+  document.getElementById("detalle-pauta-titulo").textContent = pauta.nombre;
+  document.getElementById("detalle-pauta-categoria").textContent = pauta.categoria || "-";
+  document.getElementById("detalle-pauta-fecha").textContent = pauta.fecha || "-";
+  document.getElementById("detalle-pauta-responsable").textContent = pauta.responsable || "-";
+  document.getElementById("detalle-pauta-descripcion").textContent =
+    pauta.descripcion?.trim() || "No se ha registrado una descripción.";
+  document.getElementById("detalle-pauta-conclusion").textContent =
+    pauta.conclusion?.trim() || "No se ha registrado una conclusión.";
+
+  const contenedorProcesos = document.getElementById("detalle-pauta-procesos");
+  contenedorProcesos.replaceChildren();
+
+  if (pauta.procesos.length === 0) {
+    const mensaje = document.createElement("p");
+    mensaje.className = "text-body-secondary mb-0";
+    mensaje.textContent = "No se han registrado procesos.";
+    contenedorProcesos.appendChild(mensaje);
+  } else {
+    pauta.procesos.forEach((proceso) => {
+      const tarjeta = document.createElement("article");
+      tarjeta.className = "border rounded p-3";
+
+      const titulo = document.createElement("h4");
+      titulo.className = "h6 mb-2";
+      titulo.textContent = proceso.nombre;
+      tarjeta.appendChild(titulo);
+
+      if (proceso.pasos.length > 0) {
+        const pasos = document.createElement("ol");
+        pasos.className = "mb-2";
+        proceso.pasos.forEach((paso) => {
+          const elemento = document.createElement("li");
+          elemento.textContent = paso;
+          pasos.appendChild(elemento);
+        });
+        tarjeta.appendChild(pasos);
+      }
+
+      if (proceso.nota) {
+        const nota = document.createElement("p");
+        nota.className = "text-body-secondary mb-0";
+        nota.textContent = `Nota: ${proceso.nota}`;
+        tarjeta.appendChild(nota);
+      }
+
+      contenedorProcesos.appendChild(tarjeta);
+    });
+  }
+
+  bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("detalle-pauta-modal")
+  ).show();
 }
 
 function solicitarEliminacionPauta(pauta, boton) {

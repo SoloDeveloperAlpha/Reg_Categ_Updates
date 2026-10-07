@@ -281,40 +281,42 @@ async function deletePauta(req, res) {
     return res.status(400).json({ mensaje: 'El identificador de la pauta no es válido.' });
   }
 
+  let transaccionIniciada = false;
   try {
     await tablaPautasLista;
 
     await ejecutar('BEGIN IMMEDIATE');
+    transaccionIniciada = true;
     const pauta = await consultarUno('SELECT id_pauta FROM pautas WHERE id_pauta = ?', [id]);
     if (!pauta) {
       await ejecutar('ROLLBACK');
+      transaccionIniciada = false;
       return res.status(404).json({ mensaje: 'Pauta no encontrada.' });
     }
 
-    const historial = await consultarUno(
-      'SELECT COUNT(*) AS total FROM actualizaciones WHERE pauta_id = ?',
-      [id]
-    );
-    if (historial.total > 0) {
-      await ejecutar('ROLLBACK');
-      return res.status(409).json({
-        mensaje: 'No se puede eliminar la pauta porque tiene actualizaciones registradas. El historial se conserva.'
-      });
-    }
+    await ejecutar('DELETE FROM actualizaciones WHERE pauta_id = ?', [id]);
 
     const resultado = await ejecutar('DELETE FROM pautas WHERE id_pauta = ?', [id]);
     if (!resultado.changes) {
       await ejecutar('ROLLBACK');
+      transaccionIniciada = false;
       return res.status(404).json({ mensaje: 'Pauta no encontrada.' });
     }
 
     await ejecutar('COMMIT');
+    transaccionIniciada = false;
     return res.json({ mensaje: 'Pauta eliminada correctamente.' });
   } catch (error) {
-    await ejecutar('ROLLBACK').catch(() => {});
+    if (transaccionIniciada) {
+      try {
+        await ejecutar('ROLLBACK');
+      } catch (errorReversion) {
+        console.error('No se pudo revertir la eliminación de la pauta:', errorReversion);
+      }
+    }
     if (error.code === 'SQLITE_CONSTRAINT') {
       return res.status(409).json({
-        mensaje: 'No se puede eliminar la pauta porque tiene actualizaciones registradas. El historial se conserva.'
+        mensaje: 'No se pudo eliminar la pauta debido a registros relacionados.'
       });
     }
     return responderError(res, 'No se pudo eliminar la pauta.', error);

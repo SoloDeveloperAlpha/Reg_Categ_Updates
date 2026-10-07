@@ -6,6 +6,7 @@
     <title>Gestor de Políticas y Pautas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="css/theme.css" rel="stylesheet">
     <link href="css/app.css" rel="stylesheet">
     <style>
         html {
@@ -50,11 +51,20 @@
                         <p id="page-description" class="text-muted mb-0">Centro de control de políticas y pautas</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto">
-                        <button id="abrir-perfil" type="button" class="btn btn-outline-secondary d-flex align-items-center gap-2" aria-label="Abrir perfil y configuración">
-                            <span id="user-avatar" class="user-avatar rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-semibold" aria-hidden="true"></span>
-                            <span id="user-name" class="text-truncate"></span>
-                            <i class="bi bi-chevron-down" aria-hidden="true"></i>
-                        </button>
+                        <div class="dropdown profile-dropdown">
+                            <button id="abrir-perfil" type="button" class="btn border-0 d-flex align-items-center gap-2" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Abrir opciones de perfil">
+                                <span id="user-avatar" class="user-avatar rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-semibold" aria-hidden="true"></span>
+                                <span id="user-name" class="text-truncate"></span>
+                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <button id="abrir-configuracion-perfil" type="button" class="dropdown-item">
+                                        <i class="bi bi-gear me-2" aria-hidden="true"></i>Configuración
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </header>
 
@@ -320,13 +330,47 @@
                         <div class="modal-body">
                             <p class="mb-2">¿Realmente deseas eliminar esta pauta?</p>
                             <p id="nombre-pauta-eliminar" class="fw-semibold mb-3"></p>
-                            <p class="text-body-secondary small mb-0">Si la pauta tiene actualizaciones registradas, el sistema conservará el historial y no permitirá eliminarla.</p>
+                            <p class="text-body-secondary small mb-0">También se eliminarán todas las actualizaciones asociadas a esta pauta. Esta acción no se puede deshacer.</p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                             <button type="button" id="confirmar-eliminar-pauta" class="btn btn-danger"><i class="bi bi-trash me-2" aria-hidden="true"></i>Eliminar pauta</button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="detalle-pauta-modal" tabindex="-1" aria-labelledby="detalle-pauta-titulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="detalle-pauta-titulo"></h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <dl class="row mb-4">
+                        <dt class="col-sm-3">Categoría</dt>
+                        <dd class="col-sm-9" id="detalle-pauta-categoria"></dd>
+                        <dt class="col-sm-3">Última actualización</dt>
+                        <dd class="col-sm-9" id="detalle-pauta-fecha"></dd>
+                        <dt class="col-sm-3">Auditor</dt>
+                        <dd class="col-sm-9" id="detalle-pauta-responsable"></dd>
+                    </dl>
+                    <section class="mb-4">
+                        <h3 class="h6">Descripción</h3>
+                        <p id="detalle-pauta-descripcion" class="mb-0 text-break"></p>
+                    </section>
+                    <section class="mb-4">
+                        <h3 class="h6">Conclusión</h3>
+                        <p id="detalle-pauta-conclusion" class="mb-0 text-break"></p>
+                    </section>
+                    <section>
+                        <h3 class="h6">Procesos</h3>
+                        <div id="detalle-pauta-procesos" class="d-grid gap-3"></div>
+                    </section>
                 </div>
             </div>
         </div>

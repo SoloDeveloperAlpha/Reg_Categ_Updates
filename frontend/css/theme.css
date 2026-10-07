@@ -1,0 +1,138 @@
+:root {
+    --bs-primary: #1f3a5f;
+    --bs-primary-rgb: 31, 58, 95;
+    --bs-secondary: #64748b;
+    --bs-secondary-rgb: 100, 116, 139;
+    --bs-success: #198754;
+    --bs-success-rgb: 25, 135, 84;
+    --bs-info: #0e7490;
+    --bs-info-rgb: 14, 116, 144;
+    --bs-warning: #b45309;
+    --bs-warning-rgb: 180, 83, 9;
+    --bs-danger: #b42318;
+    --bs-danger-rgb: 180, 35, 24;
+    --bs-light: #f4f7fa;
+    --bs-light-rgb: 244, 247, 250;
+    --bs-dark: #1f3a5f;
+    --bs-dark-rgb: 31, 58, 95;
+    --bs-body-color: #243447;
+    --bs-body-color-rgb: 36, 52, 71;
+    --bs-body-bg: #f4f7fa;
+    --bs-body-bg-rgb: 244, 247, 250;
+    --bs-secondary-color: #64748b;
+    --bs-secondary-bg: #eef2f6;
+    --bs-tertiary-bg: #f4f7fa;
+    --bs-border-color: #d8e0e8;
+    --bs-border-color-translucent: rgba(36, 52, 71, 0.175);
+    --bs-link-color: #1f3a5f;
+    --bs-link-hover-color: #0f766e;
+    --bs-focus-ring-color: rgba(31, 58, 95, 0.25);
+    --bs-nav-pills-link-active-bg: #0f766e;
+}
+
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #1f3a5f;
+    --bs-btn-border-color: #1f3a5f;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #172e4d;
+    --bs-btn-hover-border-color: #172e4d;
+    --bs-btn-focus-shadow-rgb: 31, 58, 95;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #152944;
+    --bs-btn-active-border-color: #152944;
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: #1f3a5f;
+    --bs-btn-disabled-border-color: #1f3a5f;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: #1f3a5f;
+    --bs-btn-border-color: #1f3a5f;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #1f3a5f;
+    --bs-btn-hover-border-color: #1f3a5f;
+    --bs-btn-focus-shadow-rgb: 31, 58, 95;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #172e4d;
+    --bs-btn-active-border-color: #172e4d;
+}
+
+.btn-outline-secondary {
+    --bs-btn-color: #64748b;
+    --bs-btn-border-color: #64748b;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #64748b;
+    --bs-btn-hover-border-color: #64748b;
+    --bs-btn-focus-shadow-rgb: 100, 116, 139;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #526176;
+    --bs-btn-active-border-color: #526176;
+}
+
+.btn-secondary {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #64748b;
+    --bs-btn-border-color: #64748b;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #526176;
+    --bs-btn-hover-border-color: #526176;
+    --bs-btn-focus-shadow-rgb: 100, 116, 139;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #485568;
+    --bs-btn-active-border-color: #485568;
+}
+
+.btn-warning {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #b45309;
+    --bs-btn-border-color: #b45309;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #944507;
+    --bs-btn-hover-border-color: #944507;
+    --bs-btn-focus-shadow-rgb: 180, 83, 9;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #803b06;
+    --bs-btn-active-border-color: #803b06;
+}
+
+.btn-danger {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #b42318;
+    --bs-btn-border-color: #b42318;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #941d14;
+    --bs-btn-hover-border-color: #941d14;
+    --bs-btn-focus-shadow-rgb: 180, 35, 24;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #801910;
+    --bs-btn-active-border-color: #801910;
+}
+
+.btn-outline-danger {
+    --bs-btn-color: #b42318;
+    --bs-btn-border-color: #b42318;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #b42318;
+    --bs-btn-hover-border-color: #b42318;
+    --bs-btn-focus-shadow-rgb: 180, 35, 24;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #941d14;
+    --bs-btn-active-border-color: #941d14;
+}
+
+.table-light {
+    --bs-table-color: #243447;
+    --bs-table-bg: #eef2f6;
+    --bs-table-border-color: #d8e0e8;
+    --bs-table-striped-bg: #e7edf3;
+    --bs-table-striped-color: #243447;
+    --bs-table-active-bg: #dfe7ef;
+    --bs-table-active-color: #243447;
+    --bs-table-hover-bg: #e7edf3;
+    --bs-table-hover-color: #243447;
+}
+
+.app-sidebar .nav-pills .nav-link.active {
+    background-color: #0f766e;
+}

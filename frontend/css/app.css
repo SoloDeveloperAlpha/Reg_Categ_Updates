@@ -16,7 +16,7 @@
     margin: 0 !important;
 }
 
-.app-layout > * {
+.app-layout>* {
     width: auto !important;
     max-width: none;
     min-width: 0;
@@ -26,6 +26,23 @@
 .app-sidebar,
 .app-main {
     min-width: 0;
+}
+
+.app-sidebar .nav-pills .nav-link:not(.active):hover,
+.app-sidebar .nav-pills .nav-link:not(.active):focus-visible {
+    color: #fff;
+    background-color: rgba(15, 118, 109, 0.171);
+}
+
+.profile-dropdown>#abrir-perfil:hover,
+.profile-dropdown>#abrir-perfil:focus-visible {
+    background-color: rgba(var(--bs-primary-rgb), 0.08);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .profile-dropdown:hover>.dropdown-menu {
+        display: block;
+    }
 }
 
 .app-sidebar {
@@ -67,6 +84,7 @@
 }
 
 @media (min-width: 768px) {
+
     .app-header,
     .app-sidebar-brand {
         min-height: 7rem;
@@ -83,7 +101,7 @@
     padding: 0.85rem;
 }
 
-.app-page.compact-ui .table > :not(caption) > * > * {
+.app-page.compact-ui .table> :not(caption)>*>* {
     padding-block: 0.35rem;
 }
 
@@ -140,7 +158,7 @@
         min-height: 100svh;
     }
 
-    .app-layout > * {
+    .app-layout>* {
         flex-shrink: 0;
         width: 100% !important;
     }
@@ -216,7 +234,7 @@
         padding: 0.8rem 1rem !important;
     }
 
-    .app-header > div:first-child {
+    .app-header>div:first-child {
         min-width: 0;
     }
 
