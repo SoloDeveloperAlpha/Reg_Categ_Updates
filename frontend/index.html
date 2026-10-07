@@ -50,7 +50,11 @@
                         <p id="page-description" class="text-muted mb-0">Centro de control de políticas y pautas</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto">
-                        <span id="user-avatar" class="user-avatar rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-semibold" role="img" aria-label="Inicial del usuario" aria-live="polite"></span>
+                        <button id="abrir-perfil" type="button" class="btn btn-outline-secondary d-flex align-items-center gap-2" aria-label="Abrir perfil y configuración">
+                            <span id="user-avatar" class="user-avatar rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-semibold" aria-hidden="true"></span>
+                            <span id="user-name" class="text-truncate"></span>
+                            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </header>
 
@@ -151,6 +155,10 @@
                                             <select id="nueva-pauta-categoria" class="form-select" required>
                                                 <option value="">Seleccionar categoría</option>
                                             </select>
+                                            <div id="nueva-pauta-categoria-nueva-contenedor" class="mt-2 d-none">
+                                                <label for="nueva-pauta-categoria-nueva" class="form-label">Nombre de la nueva categoría</label>
+                                                <input type="text" id="nueva-pauta-categoria-nueva" class="form-control" maxlength="100" placeholder="Escribe el nombre de la categoría">
+                                            </div>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="nueva-pauta-nombre" class="form-label">Nombre de la pauta</label>
@@ -232,6 +240,69 @@
                             <div class="card shadow-sm">
                                 <div class="card-body">
                                     <p class="empty text-muted mb-0">No existen cambios registrados.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="perfil" class="section d-none" aria-labelledby="perfil-titulo">
+                        <div class="row g-4">
+                            <div class="col-12 col-xl-7">
+                                <div class="card shadow-sm h-100">
+                                    <div class="card-header bg-white">
+                                        <h2 id="perfil-titulo" class="h5 mb-0">Datos de la cuenta</h2>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="text-body-secondary">Actualiza tu usuario o correo. Confirma los cambios con tu contraseña actual.</p>
+                                        <form id="form-perfil">
+                                            <div class="mb-3">
+                                                <label for="perfil-usuario" class="form-label">Usuario</label>
+                                                <input id="perfil-usuario" name="usuario" class="form-control" autocomplete="username" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="perfil-correo" class="form-label">Correo electrónico</label>
+                                                <input id="perfil-correo" name="correo_electronico" type="email" class="form-control" autocomplete="email" required>
+                                            </div>
+                                            <hr>
+                                            <div class="mb-3">
+                                                <label for="perfil-contrasena-actual" class="form-label">Contraseña actual</label>
+                                                <input id="perfil-contrasena-actual" name="contrasenaActual" type="password" class="form-control" autocomplete="current-password" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="perfil-contrasena-nueva" class="form-label">Nueva contraseña <span class="text-body-secondary">(opcional)</span></label>
+                                                <input id="perfil-contrasena-nueva" name="contrasenaNueva" type="password" class="form-control" autocomplete="new-password">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="perfil-confirmar-contrasena" class="form-label">Confirmar nueva contraseña</label>
+                                                <input id="perfil-confirmar-contrasena" name="confirmarContrasena" type="password" class="form-control" autocomplete="new-password">
+                                            </div>
+                                            <div id="perfil-mensaje" class="alert d-none" role="status" aria-live="polite"></div>
+                                            <button id="guardar-perfil" type="submit" class="btn btn-primary">Guardar cambios</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-xl-5">
+                                <div class="card shadow-sm h-100">
+                                    <div class="card-header bg-white">
+                                        <h2 class="h5 mb-0">Preferencias de interfaz</h2>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-4">
+                                            <label for="preferencia-tema" class="form-label">Tema</label>
+                                            <select id="preferencia-tema" class="form-select">
+                                                <option value="light">Claro</option>
+                                                <option value="dark">Oscuro</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input id="preferencia-compacta" class="form-check-input" type="checkbox" role="switch">
+                                            <label class="form-check-label" for="preferencia-compacta">Vista compacta</label>
+                                            <div class="form-text">Reduce el espacio de tarjetas y tablas para mostrar más información.</div>
+                                        </div>
+                                        <div id="preferencias-mensaje" class="text-success small mt-3 d-none" role="status" aria-live="polite">Preferencias guardadas.</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

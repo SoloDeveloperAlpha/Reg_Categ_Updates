@@ -66,10 +66,56 @@
     min-width: 0;
 }
 
+@media (min-width: 768px) {
+    .app-header,
+    .app-sidebar-brand {
+        min-height: 7rem;
+    }
+}
+
 .user-avatar {
     flex: 0 0 auto;
     width: clamp(2.25rem, 4vw, 3rem);
     height: clamp(2.25rem, 4vw, 3rem);
+}
+
+.app-page.compact-ui .card-body {
+    padding: 0.85rem;
+}
+
+.app-page.compact-ui .table > :not(caption) > * > * {
+    padding-block: 0.35rem;
+}
+
+.app-page[data-bs-theme="dark"] {
+    color: #f8f9fa;
+    background-color: #212529 !important;
+}
+
+.app-page[data-bs-theme="dark"] .app-main,
+.app-page[data-bs-theme="dark"] .app-content {
+    color: #f8f9fa;
+    background-color: #212529 !important;
+}
+
+.app-page[data-bs-theme="dark"] .app-header,
+.app-page[data-bs-theme="dark"] .card,
+.app-page[data-bs-theme="dark"] .card-header,
+.app-page[data-bs-theme="dark"] .modal-content {
+    color: #f8f9fa !important;
+    background-color: #343a40 !important;
+}
+
+.app-page[data-bs-theme="dark"] .text-dark {
+    color: #f8f9fa !important;
+}
+
+.app-page[data-bs-theme="dark"] .table-light {
+    --bs-table-color: #f8f9fa;
+    --bs-table-bg: #343a40;
+    --bs-table-border-color: #495057;
+    --bs-table-striped-bg: #3b4248;
+    --bs-table-striped-color: #f8f9fa;
 }
 
 @media (max-width: 767.98px) {
@@ -176,6 +222,10 @@
 
     .app-header h1 {
         font-size: clamp(1.15rem, 5vw, 1.5rem) !important;
+    }
+
+    #user-name {
+        max-width: 7rem;
     }
 
     .app-header p {

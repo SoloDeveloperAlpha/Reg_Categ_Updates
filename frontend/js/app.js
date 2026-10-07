@@ -3,6 +3,7 @@ let actualizaciones = [];
 let pautaPendienteEliminar = null;
 let botonPendienteEliminar = null;
 let busquedaPautasEjecutada = false;
+const OPCION_NUEVA_CATEGORIA = "__crear_categoria__";
 
 async function cargarDatosBD() {
   const [respuestaPautas, respuestaActualizaciones] = await Promise.all([
@@ -42,11 +43,53 @@ function completarResponsableActual() {
   responsableInput.readOnly = true;
 }
 
+function obtenerPreferencias() {
+  try {
+    const preferencias = JSON.parse(localStorage.getItem("preferenciasUsuario")) || {};
+    return {
+      tema: preferencias.tema === "dark" ? "dark" : "light",
+      compacta: preferencias.compacta === true
+    };
+  } catch (error) {
+    console.error("No se pudieron leer las preferencias guardadas:", error);
+    return { tema: "light", compacta: false };
+  }
+}
+
+function aplicarPreferencias() {
+  const preferencias = obtenerPreferencias();
+  document.body.dataset.bsTheme = preferencias.tema;
+  document.body.classList.toggle("compact-ui", preferencias.compacta);
+
+  const temaInput = document.getElementById("preferencia-tema");
+  const compactaInput = document.getElementById("preferencia-compacta");
+  if (temaInput) temaInput.value = preferencias.tema;
+  if (compactaInput) compactaInput.checked = preferencias.compacta;
+}
+
 const menuItems = document.querySelectorAll(".menu-item");
 const sections = document.querySelectorAll(".section");
 const pageTitle = document.getElementById("page-title");
 const pageDescription = document.getElementById("page-description");
 const logoutButton = document.getElementById("cerrar-sesion");
+const openProfileButton = document.getElementById("abrir-perfil");
+
+function mostrarSeccion(sectionId, menuActivo = null) {
+  menuItems.forEach((menu) => menu.classList.remove("active"));
+  if (menuActivo) menuActivo.classList.add("active");
+  sections.forEach((section) => {
+    section.classList.add("d-none");
+    section.classList.remove("active");
+  });
+
+  const selectedSection = document.getElementById(sectionId);
+  if (selectedSection) {
+    selectedSection.classList.remove("d-none");
+    selectedSection.classList.add("active");
+  }
+
+  actualizarTitulo(sectionId);
+}
 
 if (logoutButton) {
   logoutButton.addEventListener("click", () => {
@@ -61,7 +104,8 @@ function actualizarTitulo(section) {
     pautas: ["Políticas y Pautas", "Consulta las pautas actualmente registradas."],
     actualizacion: ["Nueva actualización", "Registra un nuevo cambio realizado sobre una pauta."],
     "nueva-pauta": ["Nueva pauta", "Registra una pauta nueva dentro de una categoría."],
-    historial: ["Historial", "Consulta todos los cambios realizados."]
+    historial: ["Historial", "Consulta todos los cambios realizados."],
+    perfil: ["Perfil y configuración", "Administra los datos de tu cuenta y tus preferencias."]
   };
 
   if (!titulos[section]) return;
@@ -72,21 +116,7 @@ function actualizarTitulo(section) {
 menuItems.forEach((item) => {
   item.addEventListener("click", () => {
     const sectionId = item.dataset.section;
-    menuItems.forEach((menu) => menu.classList.remove("active"));
-    item.classList.add("active");
-
-    sections.forEach((section) => {
-      section.classList.add("d-none");
-      section.classList.remove("active");
-    });
-
-    const selectedSection = document.getElementById(sectionId);
-    if (selectedSection) {
-      selectedSection.classList.remove("d-none");
-      selectedSection.classList.add("active");
-    }
-
-    actualizarTitulo(sectionId);
+    mostrarSeccion(sectionId, item);
 
     const menuDesplegable = document.getElementById("sidebar-menu-content");
     if (menuDesplegable && window.matchMedia("(max-width: 767.98px)").matches) {
@@ -99,6 +129,101 @@ menuItems.forEach((item) => {
     }
   });
 });
+
+if (openProfileButton) {
+  openProfileButton.addEventListener("click", () => mostrarSeccion("perfil"));
+}
+
+const profileForm = document.getElementById("form-perfil");
+const profileMessage = document.getElementById("perfil-mensaje");
+const profileSaveButton = document.getElementById("guardar-perfil");
+
+function mostrarMensajePerfil(message, type) {
+  profileMessage.textContent = message;
+  profileMessage.className = `alert alert-${type}`;
+}
+
+function actualizarDatosPerfil(usuario) {
+  localStorage.setItem("usuarioActual", JSON.stringify(usuario));
+  const userName = document.getElementById("user-name");
+  const userAvatar = document.getElementById("user-avatar");
+  if (userName) userName.textContent = usuario.usuario;
+  if (userAvatar) userAvatar.textContent = Array.from(usuario.usuario)[0]?.toLocaleUpperCase("es") || "";
+  document.getElementById("perfil-usuario").value = usuario.usuario;
+  document.getElementById("perfil-correo").value = usuario.correo_electronico;
+}
+
+if (profileForm) {
+  const usuarioActual = obtenerUsuarioActual();
+  if (usuarioActual) actualizarDatosPerfil(usuarioActual);
+
+  profileForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    profileMessage.classList.add("d-none");
+
+    const contrasenaNueva = document.getElementById("perfil-contrasena-nueva").value;
+    const confirmarContrasena = document.getElementById("perfil-confirmar-contrasena").value;
+    if (contrasenaNueva !== confirmarContrasena) {
+      mostrarMensajePerfil("Las contraseñas nuevas no coinciden.", "danger");
+      return;
+    }
+
+    profileSaveButton.disabled = true;
+    try {
+      const response = await fetch("/api/auth/perfil", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_usuario: obtenerUsuarioActual()?.id_usuario,
+          usuario: document.getElementById("perfil-usuario").value,
+          correo_electronico: document.getElementById("perfil-correo").value,
+          contrasenaActual: document.getElementById("perfil-contrasena-actual").value,
+          contrasenaNueva,
+          confirmarContrasena
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        mostrarMensajePerfil(result.mensaje || "No se pudieron guardar los cambios.", "danger");
+        return;
+      }
+
+      profileForm.reset();
+      actualizarDatosPerfil(result.usuario);
+      completarResponsableActual();
+      mostrarMensajePerfil(result.mensaje, "success");
+    } catch (error) {
+      mostrarMensajePerfil("No se pudo conectar con el servidor.", "danger");
+    } finally {
+      profileSaveButton.disabled = false;
+    }
+  });
+}
+
+function guardarPreferencias() {
+  const preferencesMessage = document.getElementById("preferencias-mensaje");
+  const preferencias = {
+    tema: document.getElementById("preferencia-tema").value,
+    compacta: document.getElementById("preferencia-compacta").checked
+  };
+
+  try {
+    localStorage.setItem("preferenciasUsuario", JSON.stringify(preferencias));
+    aplicarPreferencias();
+    preferencesMessage.textContent = "Preferencias guardadas.";
+    preferencesMessage.classList.remove("d-none", "text-danger");
+    preferencesMessage.classList.add("text-success");
+  } catch (error) {
+    preferencesMessage.textContent = "No se pudieron guardar las preferencias en este navegador.";
+    preferencesMessage.classList.remove("d-none", "text-success");
+    preferencesMessage.classList.add("text-danger");
+  }
+}
+
+document.getElementById("preferencia-tema").addEventListener("change", guardarPreferencias);
+document.getElementById("preferencia-compacta").addEventListener("change", guardarPreferencias);
+aplicarPreferencias();
 
 function actualizarDashboard() {
   document.getElementById("total-pautas").textContent = pautas.length;
@@ -309,7 +434,9 @@ function actualizarSelectPautas() {
     const categoriaSeleccionada = nuevaCategoriaSelect.value;
     nuevaCategoriaSelect.replaceChildren(new Option("Seleccionar categoría", ""));
     categorias.forEach((categoria) => nuevaCategoriaSelect.add(new Option(categoria, categoria)));
-    nuevaCategoriaSelect.value = categorias.includes(categoriaSeleccionada) ? categoriaSeleccionada : "";
+    nuevaCategoriaSelect.add(new Option("+ Crear nueva categoría", OPCION_NUEVA_CATEGORIA));
+    nuevaCategoriaSelect.value = categoriaSeleccionada === OPCION_NUEVA_CATEGORIA ||
+      categorias.includes(categoriaSeleccionada) ? categoriaSeleccionada : "";
   }
 
   if (pautaSelect) {
@@ -454,11 +581,30 @@ if (formulario) {
 
 const formularioNuevaPauta = document.getElementById("form-nueva-pauta");
 if (formularioNuevaPauta) {
+  const categoriaSelect = document.getElementById("nueva-pauta-categoria");
+  const nuevaCategoriaContenedor = document.getElementById("nueva-pauta-categoria-nueva-contenedor");
+  const nuevaCategoriaInput = document.getElementById("nueva-pauta-categoria-nueva");
+
+  categoriaSelect.addEventListener("change", () => {
+    const crearCategoria = categoriaSelect.value === OPCION_NUEVA_CATEGORIA;
+    nuevaCategoriaContenedor.classList.toggle("d-none", !crearCategoria);
+    nuevaCategoriaInput.required = crearCategoria;
+    if (!crearCategoria) nuevaCategoriaInput.value = "";
+  });
+
+  formularioNuevaPauta.addEventListener("reset", () => {
+    nuevaCategoriaContenedor.classList.add("d-none");
+    nuevaCategoriaInput.required = false;
+    nuevaCategoriaInput.value = "";
+  });
+
   formularioNuevaPauta.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const responsable = obtenerUsuarioActual()?.usuario || "";
-    const categoria = document.getElementById("nueva-pauta-categoria").value;
+    const categoria = categoriaSelect.value === OPCION_NUEVA_CATEGORIA
+      ? nuevaCategoriaInput.value.trim()
+      : categoriaSelect.value;
     const nombre = document.getElementById("nueva-pauta-nombre").value.trim();
     const descripcion = document.getElementById("nueva-pauta-descripcion").value.trim();
 
@@ -608,13 +754,11 @@ async function actualizarTodo() {
     ? usuarioActual.usuario.trim()
     : "";
   const avatarUsuario = document.getElementById("user-avatar");
+  const etiquetaUsuario = document.getElementById("user-name");
   if (avatarUsuario) {
     avatarUsuario.textContent = Array.from(nombreUsuario)[0]?.toLocaleUpperCase("es") || "";
-    avatarUsuario.setAttribute(
-      "aria-label",
-      nombreUsuario ? `Inicial de ${nombreUsuario}` : "Usuario no identificado"
-    );
   }
+  if (etiquetaUsuario) etiquetaUsuario.textContent = nombreUsuario || "Mi perfil";
 
   try {
     await cargarDatosBD();
