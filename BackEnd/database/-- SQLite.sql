@@ -4,6 +4,7 @@ CREATE TABLE usuarios (
     usuario TEXT NOT NULL,
     correo_electronico TEXT NOT NULL UNIQUE,
     contrasena TEXT NOT NULL,
+    rol TEXT NOT NULL DEFAULT 'consulta',
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -34,6 +35,16 @@ CREATE TABLE IF NOT EXISTS actualizaciones (
     cambio TEXT NOT NULL,
     observaciones TEXT DEFAULT '',
     FOREIGN KEY (pauta_id) REFERENCES pautas(id_pauta)
+);
+
+CREATE TABLE IF NOT EXISTS imagenes_pautas (
+    id_imagen INTEGER PRIMARY KEY AUTOINCREMENT,
+    pauta_id INTEGER NOT NULL,
+    nombre TEXT NOT NULL,
+    tipo_mime TEXT NOT NULL,
+    datos BLOB NOT NULL,
+    fecha_subida TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (pauta_id) REFERENCES pautas(id_pauta) ON DELETE CASCADE
 );
 
 INSERT  INTO usuarios (

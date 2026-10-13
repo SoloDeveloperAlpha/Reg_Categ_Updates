@@ -1,5 +1,9 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const {
+  crearSesion,
+  eliminarSesion,
+} = require('../middleware/auth.middleware');
 
 const database = new sqlite3.Database(path.join(__dirname, '../database/database.sqlite'));
 
@@ -11,7 +15,7 @@ function login(req, res) {
   }
 
   database.get(
-    'SELECT id_usuario, usuario, correo_electronico FROM usuarios WHERE usuario = ? AND contrasena = ?',
+    'SELECT id_usuario, usuario, correo_electronico, rol FROM usuarios WHERE usuario = ? AND contrasena = ?',
     [usuario.trim(), contrasena],
     (error, user) => {
       if (error) {
@@ -23,6 +27,7 @@ function login(req, res) {
         return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos.' });
       }
 
+      crearSesion(res, user.id_usuario);
       return res.json({ mensaje: 'Acceso autorizado.', usuario: user });
     }
   );
@@ -66,7 +71,7 @@ function register(req, res) {
       }
 
       database.run(
-        'INSERT INTO usuarios (usuario, correo_electronico, contrasena) VALUES (?, ?, ?)',
+        "INSERT INTO usuarios (usuario, correo_electronico, contrasena, rol) VALUES (?, ?, ?, CASE WHEN (SELECT COUNT(*) FROM usuarios) = 0 THEN 'administrador_general' ELSE 'consulta' END)",
         [usuarioFormateado, emailFormateado, passwordFormateado],
         function (insertError) {
           if (insertError) {
@@ -74,13 +79,21 @@ function register(req, res) {
             return res.status(500).json({ mensaje: 'No se pudo crear el usuario.' });
           }
 
-          return res.status(201).json({
-            mensaje: 'Usuario registrado correctamente.',
-            usuario: {
-              id_usuario: this.lastID,
-              usuario: usuarioFormateado,
-              correo_electronico: emailFormateado,
+          const idUsuario = this.lastID;
+          database.get('SELECT rol FROM usuarios WHERE id_usuario = ?', [idUsuario], (roleError, row) => {
+            if (roleError) {
+              console.error('Error al consultar el rol del usuario registrado:', roleError);
+              return res.status(500).json({ mensaje: 'El usuario se creó, pero no se pudieron obtener sus datos.' });
             }
+            return res.status(201).json({
+              mensaje: 'Usuario registrado correctamente.',
+              usuario: {
+                id_usuario: idUsuario,
+                usuario: usuarioFormateado,
+                correo_electronico: emailFormateado,
+                rol: row.rol,
+              }
+            });
           });
         }
       );
@@ -89,7 +102,7 @@ function register(req, res) {
 }
 
 function getUsuarios(req, res) {
-  database.all('SELECT id_usuario, usuario, correo_electronico FROM usuarios ORDER BY usuario ASC', (error, rows) => {
+  database.all('SELECT id_usuario, usuario, correo_electronico, rol FROM usuarios ORDER BY usuario ASC', (error, rows) => {
     if (error) {
       console.error('Error al consultar usuarios:', error);
       return res.status(500).json({ mensaje: 'No se pudieron obtener los usuarios.' });
@@ -99,20 +112,57 @@ function getUsuarios(req, res) {
   });
 }
 
+function actualizarRol(req, res) {
+  const id = Number(req.params.id);
+  const { rol } = req.body || {};
+  const rolesAsignables = new Set(['administrador', 'operador', 'consulta']);
+
+  if (!Number.isSafeInteger(id) || id <= 0 || !rolesAsignables.has(rol)) {
+    return res.status(400).json({ mensaje: 'El usuario o el rol seleccionado no son válidos.' });
+  }
+
+  database.run(
+    "UPDATE usuarios SET rol = ? WHERE id_usuario = ? AND rol != 'administrador_general'",
+    [rol, id],
+    function (updateError) {
+      if (updateError) {
+        console.error('Error al actualizar el rol del usuario:', updateError);
+        return res.status(500).json({ mensaje: 'No se pudo actualizar el rol.' });
+      }
+      if (this.changes) return res.json({ mensaje: 'El rol del usuario se actualizó correctamente.' });
+
+      database.get('SELECT id_usuario FROM usuarios WHERE id_usuario = ?', [id], (lookupError, user) => {
+        if (lookupError) {
+          console.error('Error al comprobar el usuario actualizado:', lookupError);
+          return res.status(500).json({ mensaje: 'No se pudo actualizar el rol.' });
+        }
+        if (!user) return res.status(404).json({ mensaje: 'No se encontró el usuario.' });
+        return res.status(403).json({ mensaje: 'No puedes cambiar el rol del administrador general.' });
+      });
+    }
+  );
+}
+
+function obtenerSesion(req, res) {
+  return res.json({ usuario: req.usuario });
+}
+
+function logout(req, res) {
+  eliminarSesion(req, res);
+  return res.json({ mensaje: 'Sesión cerrada correctamente.' });
+}
+
 function updatePerfil(req, res) {
   const {
-    id_usuario: idUsuario,
     usuario,
     correo_electronico: correoElectronico,
     contrasenaActual,
     contrasenaNueva,
     confirmarContrasena,
   } = req.body || {};
-  const id = Number(idUsuario);
+  const id = req.usuario.id_usuario;
 
   if (
-    !Number.isSafeInteger(id) ||
-    id <= 0 ||
     typeof usuario !== 'string' ||
     typeof correoElectronico !== 'string' ||
     typeof contrasenaActual !== 'string' ||
@@ -183,6 +233,7 @@ function updatePerfil(req, res) {
                   id_usuario: id,
                   usuario: usuarioFormateado,
                   correo_electronico: emailFormateado,
+                  rol: req.usuario.rol,
                 },
               });
             }
@@ -197,5 +248,8 @@ module.exports = {
   login,
   register,
   getUsuarios,
+  actualizarRol,
+  obtenerSesion,
+  logout,
   updatePerfil,
 };

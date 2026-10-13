@@ -33,9 +33,10 @@
                         <nav class="nav nav-pills flex-column p-3 gap-2 flex-grow-1 overflow-auto">
                             <button class="menu-item nav-link active text-start text-white" data-section="dashboard"><i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>Dashboard</button>
                             <button class="menu-item nav-link text-start text-white" data-section="pautas"><i class="bi bi-card-checklist me-2" aria-hidden="true"></i>Pautas</button>
-                            <button class="menu-item nav-link text-start text-white" data-section="nueva-pauta"><i class="bi bi-journal-plus me-2" aria-hidden="true"></i>Nueva pauta</button>
-                            <button class="menu-item nav-link text-start text-white" data-section="actualizacion"><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Nueva actualización</button>
+                            <button class="menu-item nav-link text-start text-white" data-section="nueva-pauta" data-requiere-escritura><i class="bi bi-journal-plus me-2" aria-hidden="true"></i>Nueva pauta</button>
+                            <button class="menu-item nav-link text-start text-white" data-section="actualizacion" data-requiere-escritura><i class="bi bi-arrow-repeat me-2" aria-hidden="true"></i>Nueva actualización</button>
                             <button class="menu-item nav-link text-start text-white" data-section="historial"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Historial</button>
+                            <button class="menu-item nav-link text-start text-white d-none" data-section="usuarios" data-requiere-administrador-general><i class="bi bi-people me-2" aria-hidden="true"></i>Usuarios y roles</button>
                         </nav>
                         <div class="app-sidebar-footer p-3 border-top border-secondary">
                             <button id="cerrar-sesion" type="button" class="btn btn-outline-light w-100"><i class="bi bi-box-arrow-left me-2" aria-hidden="true"></i>Cerrar sesión</button>
@@ -112,7 +113,7 @@
                     <section id="pautas" class="section d-none">
                         <!-- Listado de pautas -->
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-                            <button class="btn btn-primary" id="btn-nueva-pauta">+ Nueva pauta</button>
+                            <button class="btn btn-primary" id="btn-nueva-pauta" data-requiere-escritura>+ Nueva pauta</button>
                         </div>
 
                         <div class="card shadow-sm mb-4">
@@ -155,7 +156,7 @@
                         </div>
                     </section>
 
-                    <section id="nueva-pauta" class="section d-none">
+                    <section id="nueva-pauta" class="section d-none" data-requiere-escritura>
                         <div class="card shadow-sm">
                             <div class="card-body p-4">
                                 <form id="form-nueva-pauta">
@@ -181,6 +182,18 @@
                                         <textarea id="nueva-pauta-descripcion" class="form-control" rows="6" required></textarea>
                                     </div>
 
+                                    <div class="mt-4">
+                                        <span class="form-label d-block">Evidencia (opcional)</span>
+                                        <label class="dropzone" id="nueva-pauta-dropzone">
+                                            <span class="dropzone-icon" aria-hidden="true">🖼️</span>
+                                            <strong>Arrastra tus imágenes aquí</strong>
+                                            <span>o haz clic para seleccionarlas</span>
+                                            <input id="nueva-pauta-imagenes" class="dropzone-input visually-hidden" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+                                        </label>
+                                        <div class="form-text">Puedes adjuntar hasta 5 imágenes JPG, PNG, GIF o WebP. Máximo 10 MB por imagen y 20 MB en total.</div>
+                                        <div id="nueva-pauta-imagenes-seleccionadas" class="small mt-2" aria-live="polite"></div>
+                                    </div>
+
                                     <div class="d-flex gap-2 mt-4">
                                         <button type="submit" class="btn btn-primary">Guardar pauta</button>
                                         <button type="reset" class="btn btn-secondary">Limpiar</button>
@@ -190,7 +203,7 @@
                         </div>
                     </section>
 
-                    <section id="actualizacion" class="section d-none">
+                    <section id="actualizacion" class="section d-none" data-requiere-escritura>
                         <!--Nueva actualizacion-->
                         <div class="card shadow-sm">
                             <div class="card-body p-4">
@@ -213,6 +226,24 @@
                                         <div class="col-md-6">
                                             <label for="responsable" class="form-label">Auditor</label>
                                             <input type="text" id="responsable" class="form-control" readonly disabled>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <h3 class="h6">Evidencias anexadas a la pauta</h3>
+                                        <div id="evidencias-actualizacion-contenedor" class="row g-3" aria-live="polite">
+                                            <p class="text-body-secondary mb-0">Selecciona una pauta para ver sus evidencias.</p>
+                                        </div>
+                                        <div id="agregar-evidencias-actualizacion" class="mt-3 d-none">
+                                            <label class="dropzone" id="dropzone-evidencias-actualizacion">
+                                                <span class="dropzone-icon" aria-hidden="true">🖼️</span>
+                                                <strong>Arrastra aquí nuevas evidencias</strong>
+                                                <span>o haz clic para seleccionarlas</span>
+                                                <input id="input-evidencias-actualizacion" class="dropzone-input visually-hidden" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+                                            </label>
+                                            <div id="ayuda-evidencias-actualizacion" class="form-text" aria-live="polite"></div>
+                                            <div id="evidencias-actualizacion-seleccionadas" class="small mt-2" aria-live="polite"></div>
+                                            <button id="boton-agregar-evidencias-actualizacion" type="button" class="btn btn-outline-primary btn-sm mt-2" disabled>Agregar evidencias</button>
                                         </div>
                                     </div>
 
@@ -255,6 +286,33 @@
                         </div>
                     </section>
 
+                    <section id="usuarios" class="section d-none" aria-labelledby="usuarios-titulo" data-requiere-administrador-general>
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h2 id="usuarios-titulo" class="h5 mb-0">Administración de usuarios</h2>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-body-secondary">Asigna permisos de Administrador u Operador para permitir modificaciones. El rol Consulta solo puede ver la información.</p>
+                                <div id="usuarios-mensaje" class="alert d-none" role="status" aria-live="polite"></div>
+                                <div class="table-responsive">
+                                    <table class="table align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Usuario</th>
+                                                <th scope="col">Correo</th>
+                                                <th scope="col">Rol asignado</th>
+                                                <th scope="col">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tabla-usuarios">
+                                            <tr><td colspan="4" class="text-center text-body-secondary">Cargando usuarios...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
                     <section id="perfil" class="section d-none" aria-labelledby="perfil-titulo">
                         <div class="row g-4">
                             <div class="col-12 col-xl-7">
@@ -264,7 +322,7 @@
                                     </div>
                                     <div class="card-body">
                                         <p class="text-body-secondary">Actualiza tu usuario o correo. Confirma los cambios con tu contraseña actual.</p>
-                                        <form id="form-perfil">
+                                        <form id="form-perfil" data-requiere-escritura>
                                             <div class="mb-3">
                                                 <label for="perfil-usuario" class="form-label">Usuario</label>
                                                 <input id="perfil-usuario" name="usuario" class="form-control" autocomplete="username" required>
@@ -371,6 +429,24 @@
                         <h3 class="h6">Procesos</h3>
                         <div id="detalle-pauta-procesos" class="d-grid gap-3"></div>
                     </section>
+                    <section class="mt-4">
+                        <h3 class="h6">Evidencias</h3>
+                        <div id="detalle-pauta-imagenes" class="d-flex flex-wrap gap-3"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="evidencias-pauta-modal" tabindex="-1" aria-labelledby="evidencias-pauta-titulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="evidencias-pauta-titulo"></h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="evidencias-pauta-contenedor" class="row g-3"></div>
                 </div>
             </div>
         </div>

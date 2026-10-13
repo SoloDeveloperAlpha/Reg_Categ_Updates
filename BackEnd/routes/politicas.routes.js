@@ -8,11 +8,12 @@ const {
 } = require('../controllers/politicas.controller');
 
 const router = express.Router();
+const { requerirEdicion } = require('../middleware/auth.middleware');
 
 router.get('/', getPoliticas);
 router.get('/:id', getPoliticaById);
-router.post('/', createPolitica);
-router.put('/:id', updatePolitica);
-router.delete('/:id', deletePolitica);
+router.post('/', requerirEdicion, createPolitica);
+router.put('/:id', requerirEdicion, updatePolitica);
+router.delete('/:id', requerirEdicion, deletePolitica);
 
 module.exports = router;

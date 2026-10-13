@@ -1,11 +1,20 @@
 const express = require('express');
-const { login, register, getUsuarios, updatePerfil } = require('../controllers/auth.controller');
+const {
+  getUsuarios,
+  actualizarRol,
+  obtenerSesion,
+  updatePerfil,
+} = require('../controllers/auth.controller');
+const {
+  requerirAdministradorGeneral,
+  requerirEdicion,
+} = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
-router.post('/login', login);
-router.post('/register', register);
-router.get('/usuarios', getUsuarios);
-router.put('/perfil', updatePerfil);
+router.get('/sesion', obtenerSesion);
+router.get('/usuarios', requerirAdministradorGeneral, getUsuarios);
+router.put('/usuarios/:id/rol', requerirAdministradorGeneral, actualizarRol);
+router.put('/perfil', requerirEdicion, updatePerfil);
 
 module.exports = router;
