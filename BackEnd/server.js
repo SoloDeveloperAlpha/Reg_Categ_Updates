@@ -8,17 +8,26 @@ const minutasRoutes = require('./routes/minutas.routes');
 const actualizacionesRoutes = require('./routes/actualizaciones.routes');
 const authRoutes = require('./routes/auth.routes');
 const { autenticar, inicializarAutenticacion } = require('./middleware/auth.middleware');
+const { limitarIntentos, cabecerasSeguridad } = require('./middleware/security');
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const frontendPath = path.join(__dirname, '../frontend');
 const database = new sqlite3.Database(path.join(__dirname, 'database/database.sqlite'));
 
+const limitarAcceso = limitarIntentos({
+  ventanaMs: 15 * 60 * 1000,
+  maximo: 20,
+  mensaje: 'Demasiados intentos. Espera unos minutos antes de volver a intentarlo.'
+});
+
+app.disable('x-powered-by');
+app.use(cabecerasSeguridad);
 app.use(express.json({ limit: '28mb' }));
 
-app.post('/api/login', authController.login);
-app.post('/api/auth/login', authController.login);
-app.post('/api/auth/register', authController.register);
+app.post('/api/login', limitarAcceso, authController.login);
+app.post('/api/auth/login', limitarAcceso, authController.login);
+app.post('/api/auth/register', limitarAcceso, authController.register);
 app.post('/api/auth/logout', autenticar, authController.logout);
 app.use('/api', autenticar);
 app.use('/api/auth', authRoutes);
@@ -56,8 +65,17 @@ app.use((error, req, res, next) => {
 
 inicializarAutenticacion()
   .then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Servidor ejecutándose en http://0.0.0.0:${PORT}`);
+    const servidor = app.listen(PORT, '0.0.0.0', (error) => {
+      if (error) return;
+      console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+    });
+    servidor.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`El puerto ${PORT} ya está en uso. Cierra el otro servidor o usa otro puerto (PORT=3001 node server.js).`);
+      } else {
+        console.error('No se pudo iniciar el servidor:', error);
+      }
+      process.exit(1);
     });
   })
   .catch((error) => {

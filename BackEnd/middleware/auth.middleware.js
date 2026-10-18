@@ -1,12 +1,13 @@
 const crypto = require('crypto');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
+const { hashContrasena, esHash } = require('./security');
 
 const database = new sqlite3.Database(path.join(__dirname, '../database/database.sqlite'));
 const sessions = new Map();
 const SESSION_COOKIE = 'bitacora_sesion';
 
-function inicializarAutenticacion() {
+function prepararTablaUsuarios() {
   return new Promise((resolve, reject) => {
     database.run(`
       CREATE TABLE IF NOT EXISTS usuarios (
@@ -47,6 +48,31 @@ function inicializarAutenticacion() {
       });
     });
   });
+}
+
+function consultar(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    database.all(sql, params, (error, rows) => (error ? reject(error) : resolve(rows)));
+  });
+}
+
+function ejecutar(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    database.run(sql, params, (error) => (error ? reject(error) : resolve()));
+  });
+}
+
+async function migrarContrasenas() {
+  const usuarios = await consultar('SELECT id_usuario, contrasena FROM usuarios');
+  for (const { id_usuario: id, contrasena } of usuarios) {
+    if (esHash(contrasena)) continue;
+    await ejecutar('UPDATE usuarios SET contrasena = ? WHERE id_usuario = ?', [await hashContrasena(contrasena), id]);
+  }
+}
+
+async function inicializarAutenticacion() {
+  await prepararTablaUsuarios();
+  await migrarContrasenas();
 }
 
 function crearSesion(res, idUsuario) {

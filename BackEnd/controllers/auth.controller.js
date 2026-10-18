@@ -4,31 +4,41 @@ const {
   crearSesion,
   eliminarSesion,
 } = require('../middleware/auth.middleware');
+const { hashContrasena, verificarContrasena } = require('../middleware/security');
 
 const database = new sqlite3.Database(path.join(__dirname, '../database/database.sqlite'));
 
+const LONGITUD_MINIMA_CONTRASENA = 8;
+
 function login(req, res) {
-  const { usuario, contrasena } = req.body;
+  const { usuario, contrasena } = req.body || {};
 
   if (typeof usuario !== 'string' || typeof contrasena !== 'string' || !usuario.trim() || !contrasena) {
     return res.status(400).json({ mensaje: 'Usuario y contraseña son obligatorios.' });
   }
 
   database.get(
-    'SELECT id_usuario, usuario, correo_electronico, rol FROM usuarios WHERE usuario = ? AND contrasena = ?',
-    [usuario.trim(), contrasena],
-    (error, user) => {
+    'SELECT id_usuario, usuario, correo_electronico, rol, contrasena FROM usuarios WHERE usuario = ?',
+    [usuario.trim()],
+    async (error, registro) => {
       if (error) {
         console.error('Error al validar el acceso:', error);
         return res.status(500).json({ mensaje: 'No se pudo validar el acceso.' });
       }
 
-      if (!user) {
-        return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos.' });
-      }
+      try {
+        const valida = registro && await verificarContrasena(contrasena, registro.contrasena);
+        if (!valida) {
+          return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos.' });
+        }
 
-      crearSesion(res, user.id_usuario);
-      return res.json({ mensaje: 'Acceso autorizado.', usuario: user });
+        const { contrasena: _omitida, ...user } = registro;
+        crearSesion(res, user.id_usuario);
+        return res.json({ mensaje: 'Acceso autorizado.', usuario: user });
+      } catch (hashError) {
+        console.error('Error al verificar la contraseña:', hashError);
+        return res.status(500).json({ mensaje: 'No se pudo validar el acceso.' });
+      }
     }
   );
 }
@@ -52,6 +62,10 @@ function register(req, res) {
     return res.status(400).json({ mensaje: 'Las contraseñas no coinciden.' });
   }
 
+  if (passwordFormateado.length < LONGITUD_MINIMA_CONTRASENA) {
+    return res.status(400).json({ mensaje: `La contraseña debe tener al menos ${LONGITUD_MINIMA_CONTRASENA} caracteres.` });
+  }
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(emailFormateado)) {
     return res.status(400).json({ mensaje: 'Ingresa un correo electrónico válido.' });
@@ -60,7 +74,7 @@ function register(req, res) {
   database.get(
     'SELECT id_usuario FROM usuarios WHERE usuario = ? OR correo_electronico = ?',
     [usuarioFormateado, emailFormateado],
-    (error, existingUser) => {
+    async (error, existingUser) => {
       if (error) {
         console.error('Error al verificar usuario duplicado:', error);
         return res.status(500).json({ mensaje: 'No se pudo verificar el usuario.' });
@@ -70,9 +84,17 @@ function register(req, res) {
         return res.status(409).json({ mensaje: 'Ya existe un usuario o correo con esos datos.' });
       }
 
+      let contrasenaHash;
+      try {
+        contrasenaHash = await hashContrasena(passwordFormateado);
+      } catch (hashError) {
+        console.error('Error al proteger la contraseña:', hashError);
+        return res.status(500).json({ mensaje: 'No se pudo crear el usuario.' });
+      }
+
       database.run(
         "INSERT INTO usuarios (usuario, correo_electronico, contrasena, rol) VALUES (?, ?, ?, CASE WHEN (SELECT COUNT(*) FROM usuarios) = 0 THEN 'administrador_general' ELSE 'consulta' END)",
-        [usuarioFormateado, emailFormateado, passwordFormateado],
+        [usuarioFormateado, emailFormateado, contrasenaHash],
         function (insertError) {
           if (insertError) {
             console.error('Error al registrar usuario:', insertError);
@@ -191,16 +213,30 @@ function updatePerfil(req, res) {
     return res.status(400).json({ mensaje: 'Las contraseñas nuevas no coinciden.' });
   }
 
+  if (contrasenaNueva && contrasenaNueva.length < LONGITUD_MINIMA_CONTRASENA) {
+    return res.status(400).json({ mensaje: `La nueva contraseña debe tener al menos ${LONGITUD_MINIMA_CONTRASENA} caracteres.` });
+  }
+
   database.get(
-    'SELECT id_usuario FROM usuarios WHERE id_usuario = ? AND contrasena = ?',
-    [id, contrasenaActual],
-    (passwordError, user) => {
+    'SELECT id_usuario, contrasena FROM usuarios WHERE id_usuario = ?',
+    [id],
+    async (passwordError, user) => {
       if (passwordError) {
         console.error('Error al verificar la contraseña actual:', passwordError);
         return res.status(500).json({ mensaje: 'No se pudieron guardar los cambios de la cuenta.' });
       }
 
-      if (!user) {
+      let actualCorrecta = false;
+      let nuevoHash;
+      try {
+        actualCorrecta = Boolean(user) && await verificarContrasena(contrasenaActual, user.contrasena);
+        if (actualCorrecta) nuevoHash = contrasenaNueva ? await hashContrasena(contrasenaNueva) : user.contrasena;
+      } catch (hashError) {
+        console.error('Error al procesar la contraseña:', hashError);
+        return res.status(500).json({ mensaje: 'No se pudieron guardar los cambios de la cuenta.' });
+      }
+
+      if (!actualCorrecta) {
         return res.status(401).json({ mensaje: 'La contraseña actual es incorrecta.' });
       }
 
@@ -217,10 +253,9 @@ function updatePerfil(req, res) {
             return res.status(409).json({ mensaje: 'Ese usuario o correo electrónico ya está registrado.' });
           }
 
-          const password = contrasenaNueva || contrasenaActual;
           database.run(
             'UPDATE usuarios SET usuario = ?, correo_electronico = ?, contrasena = ? WHERE id_usuario = ?',
-            [usuarioFormateado, emailFormateado, password, id],
+            [usuarioFormateado, emailFormateado, nuevoHash, id],
             function (updateError) {
               if (updateError) {
                 console.error('Error al actualizar la cuenta:', updateError);
