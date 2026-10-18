@@ -124,7 +124,7 @@ function register(req, res) {
 }
 
 function getUsuarios(req, res) {
-  database.all('SELECT id_usuario, usuario, correo_electronico, rol FROM usuarios ORDER BY usuario ASC', (error, rows) => {
+  database.all('SELECT id_usuario, usuario, correo_electronico, rol, fecha_creacion FROM usuarios ORDER BY usuario ASC', (error, rows) => {
     if (error) {
       console.error('Error al consultar usuarios:', error);
       return res.status(500).json({ mensaje: 'No se pudieron obtener los usuarios.' });

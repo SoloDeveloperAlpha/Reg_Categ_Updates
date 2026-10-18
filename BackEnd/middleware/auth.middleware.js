@@ -141,12 +141,14 @@ function requerirRoles(...roles) {
 
 const requerirEdicion = requerirRoles('administrador_general', 'administrador', 'operador');
 const requerirAdministradorGeneral = requerirRoles('administrador_general');
+const requerirAdministrador = requerirRoles('administrador_general', 'administrador');
 
 module.exports = {
   autenticar,
   crearSesion,
   eliminarSesion,
   inicializarAutenticacion,
+  requerirAdministrador,
   requerirAdministradorGeneral,
   requerirEdicion
 };

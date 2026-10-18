@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { sanitizarTextoEnriquecido } = require('../middleware/sanitizar');
 
 const database = new sqlite3.Database(path.join(__dirname, '../database/database.sqlite'));
 const MAX_IMAGENES_POR_PAUTA = 5;
@@ -387,7 +388,7 @@ async function createPauta(req, res) {
     categoria: categoria.trim(),
     fecha: fecha.trim(),
     responsable: responsable.trim(),
-    descripcion: descripcion.trim(),
+    descripcion: sanitizarTextoEnriquecido(descripcion),
     conclusion: conclusion.trim(),
     procesos
   };
@@ -464,13 +465,19 @@ async function updatePauta(req, res) {
     const actual = mapearPauta(row);
     const body = req.body;
 
+    const texto = (valor, actualValor) => {
+      if (valor === undefined) return actualValor;
+      return typeof valor === 'string' ? valor.trim() : null;
+    };
     const pauta = {
-      nombre: body.nombre === undefined ? actual.nombre : body.nombre.trim(),
-      categoria: body.categoria === undefined ? actual.categoria : body.categoria.trim(),
+      nombre: texto(body.nombre, actual.nombre),
+      categoria: texto(body.categoria, actual.categoria),
       fecha: body.fecha === undefined ? actual.fecha : body.fecha,
-      responsable: body.responsable === undefined ? actual.responsable : body.responsable.trim(),
-      descripcion: body.descripcion === undefined ? actual.descripcion : body.descripcion.trim(),
-      conclusion: body.conclusion === undefined ? actual.conclusion : body.conclusion.trim(),
+      responsable: texto(body.responsable, actual.responsable),
+      descripcion: body.descripcion === undefined
+        ? actual.descripcion
+        : (typeof body.descripcion === 'string' ? sanitizarTextoEnriquecido(body.descripcion) : null),
+      conclusion: texto(body.conclusion, actual.conclusion),
       procesos: body.procesos === undefined ? actual.procesos : body.procesos
     };
 
