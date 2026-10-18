@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitácora - Iniciar sesión</title>
+    <link rel="icon" href="resource/bitacora-brand/favicons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="resource/bitacora-brand/favicons/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="resource/bitacora-brand/favicons/apple-touch-icon.png">
+    <meta name="theme-color" content="#0f1b2d">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="css/theme.css" rel="stylesheet">
     <link href="css/auth.css" rel="stylesheet">
@@ -11,35 +15,25 @@
 <body class="auth-page">
     <main class="container-fluid p-0">
         <div class="row g-0 auth-layout">
-            <section class="col-md-7 d-none d-md-flex position-relative align-items-end overflow-hidden bg-dark text-white auth-hero" aria-label="Panel de Bitácora">
-                <img src="images/fondo_login.jpg" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover" alt="" aria-hidden="true">
-                <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"></div>
-                <div class="position-relative">
-                    <p class="text-info fw-semibold text-uppercase small mb-3">Gestión y seguimiento</p>
-                    <h2 class="display-3 fw-normal mb-3">Bitácora</h2>
-                    <p class="fs-5 text-white-50 mb-0">Un espacio para mantener cada actualización en curso y cada decisión en perspectiva.</p>
+            <section class="col-md-7 d-none d-md-flex align-items-center justify-content-center auth-hero" aria-label="Panel de Bitácora">
+                <div class="text-center">
+                    <img src="images/bitacora-logo-stacked-dark.svg" alt="Bitácora" class="auth-hero-logo">
+                    <p class="auth-hero-lema mb-0">Un espacio para mantener cada actualización en curso y cada decisión en perspectiva.</p>
                 </div>
             </section>
 
-            <div class="col-12 d-md-none position-relative bg-dark auth-mobile-hero">
-                <img src="images/fondo_login.jpg" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover" alt="" aria-hidden="true">
-                <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"></div>
-                <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-end auth-mobile-hero-content text-white">
-                    <div>
-                        <p class="text-info fw-semibold text-uppercase small mb-2">Gestión y seguimiento</p>
-                        <h2 class="fs-1 fw-normal mb-0">Bitácora</h2>
-                    </div>
-                </div>
+            <div class="col-12 d-md-none auth-mobile-hero d-flex align-items-center justify-content-center">
+                <img src="images/bitacora-logo-dark.svg" alt="Bitácora" class="auth-mobile-logo">
             </div>
 
-            <section class="col-12 col-md-5 d-flex align-items-center justify-content-center bg-body-tertiary auth-panel" aria-labelledby="login-title">
+            <section class="col-12 col-md-5 d-flex align-items-center justify-content-center auth-panel" aria-labelledby="login-title">
                 <div class="w-100">
                     <div class="row justify-content-center">
                         <div class="col-12 col-xl-9 auth-content">
-                            <a class="d-inline-block fs-3 text-dark text-decoration-none auth-brand" href="/" aria-label="Bitácora, inicio">Bitácora</a>
+                            <a class="d-none auth-brand" href="/" aria-label="Bitácora, inicio">Bitácora</a>
 
                             <div class="mb-4 auth-intro">
-                                <p class="text-primary fw-semibold text-uppercase small mb-2">Bienvenido de nuevo</p>
+                                <p class="text-primary fw-bold text-uppercase small mb-2 auth-kicker">Bienvenido de nuevo</p>
                                 <h1 id="login-title" class="display-6 mb-2">Iniciar sesión</h1>
                                 <p class="text-body-secondary mb-0">Ingresa tus datos para continuar.</p>
                             </div>

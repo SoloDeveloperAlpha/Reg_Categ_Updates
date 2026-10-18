@@ -38,6 +38,10 @@ function puedeEditar() {
   return ["administrador_general", "administrador", "operador"].includes(obtenerUsuarioActual()?.rol);
 }
 
+function esAdministrador() {
+  return ["administrador_general", "administrador"].includes(obtenerUsuarioActual()?.rol);
+}
+
 function esAdministradorGeneral() {
   return obtenerUsuarioActual()?.rol === "administrador_general";
 }
@@ -46,6 +50,9 @@ function aplicarPermisos() {
   document.querySelectorAll("[data-requiere-escritura]").forEach((elemento) => {
     if (elemento.classList.contains("section")) return;
     elemento.classList.toggle("d-none", !puedeEditar());
+  });
+  document.querySelectorAll("[data-requiere-administrador]").forEach((elemento) => {
+    elemento.classList.toggle("d-none", !esAdministrador());
   });
   document.querySelectorAll("[data-requiere-administrador-general]").forEach((elemento) => {
     if (elemento.classList.contains("section")) return;
@@ -176,12 +183,31 @@ function mostrarMensajePerfil(message, type) {
   profileMessage.className = `alert alert-${type}`;
 }
 
+const ETIQUETAS_ROL = {
+  administrador_general: "Administrador general",
+  administrador: "Administrador",
+  operador: "Operador",
+  consulta: "Consulta"
+};
+
+function mostrarUsuarioEnCabecera(usuario) {
+  const nombre = typeof usuario?.usuario === "string" ? usuario.usuario.trim() : "";
+  const rol = ETIQUETAS_ROL[usuario?.rol] || "Usuario";
+  const asignar = (id, texto) => {
+    const elemento = document.getElementById(id);
+    if (elemento) elemento.textContent = texto;
+  };
+  asignar("user-avatar", Array.from(nombre)[0]?.toLocaleUpperCase("es") || "");
+  asignar("user-name", nombre || "Mi perfil");
+  asignar("user-role", rol);
+  asignar("user-menu-name", nombre || "Mi perfil");
+  asignar("user-menu-email", usuario?.correo_electronico || "");
+  asignar("user-menu-role", rol);
+}
+
 function actualizarDatosPerfil(usuario) {
   localStorage.setItem("usuarioActual", JSON.stringify(usuario));
-  const userName = document.getElementById("user-name");
-  const userAvatar = document.getElementById("user-avatar");
-  if (userName) userName.textContent = usuario.usuario;
-  if (userAvatar) userAvatar.textContent = Array.from(usuario.usuario)[0]?.toLocaleUpperCase("es") || "";
+  mostrarUsuarioEnCabecera(usuario);
   document.getElementById("perfil-usuario").value = usuario.usuario;
   document.getElementById("perfil-correo").value = usuario.correo_electronico;
 }
@@ -262,6 +288,8 @@ aplicarPreferencias();
 function actualizarDashboard() {
   document.getElementById("total-pautas").textContent = pautas.length;
   document.getElementById("total-actualizaciones").textContent = actualizaciones.length;
+  window.actualizarMetricas?.();
+  window.actualizarPaneles?.();
 
   if (actualizaciones.length === 0) {
     document.getElementById("ultima-actualizacion").textContent = "--";
@@ -273,6 +301,97 @@ function actualizarDashboard() {
   document.getElementById("ultima-actualizacion").textContent = ultima.fecha;
   mostrarUltimosCambios();
 }
+
+function botonEditarActualizacion(pauta) {
+  if (!puedeEditar()) return "";
+  const etiqueta = `Editar actualización de ${escaparHtml(pauta?.nombre || "pauta eliminada")}`;
+  return `<button type="button" class="btn btn-sm btn-outline-primary ms-1" data-accion="editar" title="${etiqueta}" aria-label="${etiqueta}" aria-haspopup="dialog"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>`;
+}
+
+function buscarActualizacion(id) {
+  return actualizaciones.find((item) => Number(item.id) === Number(id));
+}
+
+function nombrePautaDe(actualizacion) {
+  const pauta = pautas.find((p) => p.bdId === actualizacion.pautaId || p.id === actualizacion.pautaId);
+  return pauta?.nombre || "Pauta eliminada";
+}
+
+let actualizacionEnDetalle = null;
+let actualizacionEnEdicion = null;
+
+function mostrarDetalleActualizacion(actualizacion) {
+  actualizacionEnDetalle = actualizacion;
+  document.getElementById("detalle-actualizacion-titulo").textContent = nombrePautaDe(actualizacion);
+  document.getElementById("detalle-actualizacion-fecha").textContent = actualizacion.fecha || "-";
+  document.getElementById("detalle-actualizacion-responsable").textContent = actualizacion.responsable || "-";
+  document.getElementById("detalle-actualizacion-cambio").innerHTML = htmlSeguro(actualizacion.cambio);
+  document.getElementById("detalle-actualizacion-observaciones").innerHTML =
+    actualizacion.observaciones?.trim() ? htmlSeguro(actualizacion.observaciones) : "Sin observaciones.";
+  document.getElementById("detalle-actualizacion-editar").classList.toggle("d-none", !puedeEditar());
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("detalle-actualizacion-modal")).show();
+}
+
+function abrirEdicionActualizacion(actualizacion) {
+  actualizacionEnEdicion = actualizacion;
+  document.getElementById("editar-actualizacion-titulo").textContent =
+    `Editar actualización · ${nombrePautaDe(actualizacion)}`;
+  document.getElementById("editar-cambio").value = actualizacion.cambio || "";
+  document.getElementById("editar-observaciones").value = actualizacion.observaciones || "";
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("editar-actualizacion-modal")).show();
+}
+
+function manejarClickActualizacion(evento) {
+  const tarjeta = evento.target.closest("[data-actualizacion-id]");
+  const actualizacion = tarjeta && buscarActualizacion(tarjeta.dataset.actualizacionId);
+  if (!actualizacion) return;
+  if (evento.target.closest('[data-accion="editar"]')) return abrirEdicionActualizacion(actualizacion);
+  return mostrarDetalleActualizacion(actualizacion);
+}
+
+document.getElementById("ultimos-cambios")?.addEventListener("click", manejarClickActualizacion);
+document.getElementById("timeline")?.addEventListener("click", (evento) => {
+  if (evento.target.closest('[data-accion="editar"]')) manejarClickActualizacion(evento);
+});
+
+document.getElementById("detalle-actualizacion-editar")?.addEventListener("click", () => {
+  const actualizacion = actualizacionEnDetalle;
+  if (!actualizacion) return;
+  const modalDetalle = document.getElementById("detalle-actualizacion-modal");
+  modalDetalle.addEventListener("hidden.bs.modal", () => abrirEdicionActualizacion(actualizacion), { once: true });
+  bootstrap.Modal.getOrCreateInstance(modalDetalle).hide();
+});
+
+document.getElementById("editar-actualizacion-form")?.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+  const actualizacion = actualizacionEnEdicion;
+  if (!actualizacion) return;
+  const guardar = document.getElementById("editar-actualizacion-guardar");
+  guardar.disabled = true;
+  try {
+    const respuesta = await fetch(`/api/actualizaciones/${encodeURIComponent(actualizacion.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cambio: document.getElementById("editar-cambio").value,
+        observaciones: document.getElementById("editar-observaciones").value
+      })
+    });
+    const resultado = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) throw new Error(resultado.mensaje || "No se pudo guardar la edición.");
+
+    actualizacion.cambio = resultado.cambio;
+    actualizacion.observaciones = resultado.observaciones;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("editar-actualizacion-modal")).hide();
+    mostrarUltimosCambios();
+    mostrarHistorial();
+    await mostrarAviso("La actualización se editó correctamente.", "success");
+  } catch (error) {
+    await mostrarAviso(error.message, "danger");
+  } finally {
+    guardar.disabled = false;
+  }
+});
 
 function mostrarUltimosCambios() {
   const contenedor = document.getElementById("ultimos-cambios");
@@ -291,18 +410,21 @@ function mostrarUltimosCambios() {
       ${ultimas.map((actualizacion) => {
         const pauta = pautas.find((p) => p.bdId === actualizacion.pautaId || p.id === actualizacion.pautaId);
         return `
-          <article class="ultimos-cambios-item">
+          <article class="ultimos-cambios-item" data-actualizacion-id="${actualizacion.id}">
             <div class="ultimos-cambios-indicador" aria-hidden="true"></div>
             <div class="min-w-0 flex-grow-1">
               <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-1">
-                <h3 class="h6 mb-0 text-truncate">${pauta?.nombre || "Pauta eliminada"}</h3>
+                <h3 class="h6 mb-0 text-truncate">
+                  <button type="button" class="btn p-0 border-0 bg-transparent text-body text-start fw-semibold text-truncate mw-100" aria-haspopup="dialog" aria-label="Consultar actualización de ${escaparHtml(pauta?.nombre || "pauta eliminada")}">${escaparHtml(pauta?.nombre || "Pauta eliminada")}</button>
+                </h3>
                 <div class="ultimos-cambios-meta text-muted small">
-                  <time datetime="${actualizacion.fecha}">${actualizacion.fecha}</time>
+                  <time datetime="${escaparHtml(actualizacion.fecha)}">${escaparHtml(actualizacion.fecha)}</time>
                   <span aria-hidden="true">·</span>
-                  <span>Por ${actualizacion.responsable}</span>
+                  <span>Por ${escaparHtml(actualizacion.responsable)}</span>
+                  ${botonEditarActualizacion(pauta)}
                 </div>
               </div>
-              <p class="mb-0 mt-1 text-muted">${actualizacion.cambio}</p>
+              <div class="mb-0 mt-1 text-muted contenido-enriquecido ultimos-cambios-texto">${htmlSeguro(actualizacion.cambio)}</div>
             </div>
           </article>
         `;
@@ -310,6 +432,65 @@ function mostrarUltimosCambios() {
     </div>
   `;
 }
+
+let pautaEnEdicion = null;
+let pautaEnDetalle = null;
+
+function abrirEdicionPauta(pauta) {
+  pautaEnEdicion = pauta;
+  document.getElementById("editar-pauta-titulo").textContent = `Editar pauta · ${pauta.nombre}`;
+  document.getElementById("editar-pauta-categoria").value = pauta.categoria || "";
+  document.getElementById("editar-pauta-nombre").value = pauta.nombre || "";
+  document.getElementById("editar-pauta-descripcion").value = pauta.descripcion || "";
+  document.getElementById("editar-pauta-conclusion").value = pauta.conclusion || "";
+
+  const categorias = [...new Set(pautas.map((item) => item.categoria))];
+  document.getElementById("editar-pauta-categorias").replaceChildren(
+    ...categorias.map((categoria) => new Option(categoria))
+  );
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("editar-pauta-modal")).show();
+}
+
+document.getElementById("detalle-pauta-editar")?.addEventListener("click", () => {
+  const pauta = pautaEnDetalle;
+  if (!pauta) return;
+  const modalDetalle = document.getElementById("detalle-pauta-modal");
+  modalDetalle.addEventListener("hidden.bs.modal", () => abrirEdicionPauta(pauta), { once: true });
+  bootstrap.Modal.getOrCreateInstance(modalDetalle).hide();
+});
+
+document.getElementById("editar-pauta-form")?.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+  const pauta = pautaEnEdicion;
+  if (!pauta) return;
+  const guardar = document.getElementById("editar-pauta-guardar");
+  guardar.disabled = true;
+  try {
+    const respuesta = await fetch(`/api/pautas/${encodeURIComponent(pauta.bdId || pauta.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        categoria: document.getElementById("editar-pauta-categoria").value,
+        nombre: document.getElementById("editar-pauta-nombre").value,
+        descripcion: document.getElementById("editar-pauta-descripcion").value,
+        conclusion: document.getElementById("editar-pauta-conclusion").value
+      })
+    });
+    const resultado = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) throw new Error(resultado.mensaje || "No se pudo guardar la pauta.");
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("editar-pauta-modal")).hide();
+    await cargarDatosBD();
+    mostrarPautas();
+    actualizarDashboard();
+    mostrarHistorial();
+    await mostrarAviso("La pauta se editó correctamente.", "success");
+  } catch (error) {
+    await mostrarAviso(error.message, "danger");
+  } finally {
+    guardar.disabled = false;
+  }
+});
 
 function mostrarPautas(busquedaSolicitada = false) {
   const tabla = document.getElementById("tabla-pautas");
@@ -398,6 +579,16 @@ function mostrarPautas(busquedaSolicitada = false) {
     }
 
     if (puedeEditar()) {
+      const botonEditar = document.createElement("button");
+      botonEditar.type = "button";
+      botonEditar.className = "btn btn-sm btn-outline-primary";
+      botonEditar.title = `Editar pauta ${pauta.nombre}`;
+      botonEditar.setAttribute("aria-label", `Editar pauta ${pauta.nombre}`);
+      botonEditar.setAttribute("aria-haspopup", "dialog");
+      botonEditar.innerHTML = '<i class="bi bi-pencil-square" aria-hidden="true"></i>';
+      botonEditar.addEventListener("click", () => abrirEdicionPauta(pauta));
+      botonesAccion.appendChild(botonEditar);
+
       const botonEliminar = document.createElement("button");
       botonEliminar.type = "button";
       botonEliminar.className = "btn btn-sm btn-outline-danger";
@@ -472,12 +663,14 @@ async function mostrarEvidenciasPauta(pauta) {
 }
 
 async function mostrarDetallePauta(pauta) {
+  pautaEnDetalle = pauta;
+  document.getElementById("detalle-pauta-editar")?.classList.toggle("d-none", !puedeEditar());
   document.getElementById("detalle-pauta-titulo").textContent = pauta.nombre;
   document.getElementById("detalle-pauta-categoria").textContent = pauta.categoria || "-";
   document.getElementById("detalle-pauta-fecha").textContent = pauta.fecha || "-";
   document.getElementById("detalle-pauta-responsable").textContent = pauta.responsable || "-";
-  document.getElementById("detalle-pauta-descripcion").textContent =
-    pauta.descripcion?.trim() || "No se ha registrado una descripción.";
+  document.getElementById("detalle-pauta-descripcion").innerHTML =
+    pauta.descripcion?.trim() ? htmlSeguro(pauta.descripcion) : "No se ha registrado una descripción.";
   document.getElementById("detalle-pauta-conclusion").textContent =
     pauta.conclusion?.trim() || "No se ha registrado una conclusión.";
 
@@ -529,11 +722,11 @@ async function mostrarDetallePauta(pauta) {
     try {
       respuesta = await fetch(`/api/pautas/${encodeURIComponent(pautaId)}/imagenes`);
     } catch (error) {
-      alert("No se pudieron cargar las evidencias de la pauta.");
+      await mostrarAviso("No se pudieron cargar las evidencias de la pauta.", "danger");
       return;
     }
     if (!respuesta.ok) {
-      alert("No se pudieron cargar las evidencias de la pauta.");
+      await mostrarAviso("No se pudieron cargar las evidencias de la pauta.", "danger");
       return;
     }
 
@@ -597,7 +790,7 @@ async function eliminarPauta(pauta, boton) {
     actualizarDashboard();
     mostrarHistorial();
   } catch (error) {
-    alert(error.message);
+    await mostrarAviso(error.message, "danger");
     boton.disabled = false;
   }
 }
@@ -688,7 +881,8 @@ function obtenerDetallePauta(pauta) {
 
   return [pauta.descripcion, pauta.conclusion, resumenProcesos]
     .filter(Boolean)
-    .join("\n\n");
+    .map(htmlSeguro)
+    .join("<br><br>");
 }
 
 function cargarDetallePautaSeleccionada() {
@@ -870,7 +1064,7 @@ async function cargarEvidenciasPautaSeleccionada(pautaId) {
       botonEliminar.textContent = "Eliminar evidencia";
       botonEliminar.setAttribute("aria-label", `Eliminar evidencia ${imagen.nombre}`);
       botonEliminar.addEventListener("click", async () => {
-        if (!window.confirm(`¿Eliminar permanentemente la evidencia "${imagen.nombre}" de esta pauta?`)) return;
+        if (!await confirmarAccion(`¿Eliminar permanentemente la evidencia "${imagen.nombre}" de esta pauta?`)) return;
 
         botonEliminar.disabled = true;
         try {
@@ -886,7 +1080,7 @@ async function cargarEvidenciasPautaSeleccionada(pautaId) {
             await cargarEvidenciasPautaSeleccionada(pautaId);
           }
         } catch (error) {
-          alert(error.message || "No se pudo eliminar la evidencia.");
+          await mostrarAviso(error.message || "No se pudo eliminar la evidencia.", "danger");
           botonEliminar.disabled = false;
         }
       });
@@ -1001,7 +1195,7 @@ botonAgregarEvidencias?.addEventListener("click", async () => {
       await cargarEvidenciasPautaSeleccionada(pautaId);
     }
   } catch (error) {
-    alert(error.message || "No se pudieron agregar las evidencias.");
+    await mostrarAviso(error.message || "No se pudieron agregar las evidencias.", "danger");
     if (Number(pautaSelect?.value) === pautaId) botonAgregarEvidencias.disabled = false;
   }
 });
@@ -1021,7 +1215,7 @@ formulario.addEventListener("reset", () => {
     const categoria = categoriaSelect.value;
     const pautaId = Number(document.getElementById("pauta-select").value);
     if (!categoria || !pautaId) {
-      alert("Debes seleccionar una pauta.");
+      await mostrarAviso("Debes seleccionar una pauta.", "warning");
       return;
     }
 
@@ -1029,7 +1223,7 @@ formulario.addEventListener("reset", () => {
       Number(item.bdId || item.id) === pautaId && item.categoria === categoria
     );
     if (!pauta) {
-      alert("La pauta seleccionada no está disponible.");
+      await mostrarAviso("La pauta seleccionada no está disponible.", "warning");
       return;
     }
 
@@ -1060,11 +1254,11 @@ formulario.addEventListener("reset", () => {
       );
       await cargarDatosBD();
     } catch (error) {
-      alert(error.message);
+      await mostrarAviso(error.message, "danger");
       return;
     }
 
-    alert("Actualización registrada correctamente.");
+    await mostrarAviso("Actualización registrada correctamente.", "success");
     formulario.reset();
     completarResponsableActual();
     actualizarTodo();
@@ -1200,7 +1394,7 @@ if (formularioNuevaPauta) {
     const archivosImagenes = Array.from(imagenesInput.files);
 
     if (!responsable) {
-      alert("Debes iniciar sesión para registrar una pauta.");
+      await mostrarAviso("Debes iniciar sesión para registrar una pauta.", "warning");
       return;
     }
 
@@ -1224,7 +1418,7 @@ if (formularioNuevaPauta) {
         lector.readAsDataURL(archivo);
       })));
     } catch (error) {
-      alert(error.message);
+      await mostrarAviso(error.message, "danger");
       return;
     }
 
@@ -1236,17 +1430,17 @@ if (formularioNuevaPauta) {
         body: JSON.stringify({ nombre, categoria, descripcion, fecha, responsable, imagenes })
       });
     } catch (error) {
-      alert("No se pudo conectar con el servidor.");
+      await mostrarAviso("No se pudo conectar con el servidor.", "danger");
       return;
     }
 
     if (!respuesta.ok) {
       const error = await respuesta.json().catch(() => ({}));
-      alert(error.mensaje || "No se pudo registrar la nueva pauta.");
+      await mostrarAviso(error.mensaje || "No se pudo registrar la nueva pauta.", "danger");
       return;
     }
 
-    alert("Pauta registrada correctamente.");
+    await mostrarAviso("Pauta registrada correctamente.", "success");
     window.location.reload();
   });
 }
@@ -1275,21 +1469,24 @@ function mostrarHistorial(pautaId = "todos") {
     const pauta = pautas.find((p) => p.bdId === registro.pautaId || p.id === registro.pautaId);
 
     return `
-      <div class="card shadow-sm mb-3">
+      <div class="card shadow-sm mb-3" data-actualizacion-id="${registro.id}">
         <div class="card-body">
           <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
             <div>
-              <h5 class="card-title mb-1">${pauta?.nombre || "Pauta eliminada"}</h5>
-              <div class="text-muted small">${registro.fecha}</div>
+              <h5 class="card-title mb-1">${escaparHtml(pauta?.nombre || "Pauta eliminada")}</h5>
+              <div class="text-muted small">${escaparHtml(registro.fecha)}</div>
             </div>
-            <span class="badge bg-primary align-self-start">Cambio registrado</span>
+            <div class="d-flex align-items-start gap-2">
+              <span class="badge bg-primary">Cambio registrado</span>
+              ${botonEditarActualizacion(pauta)}
+            </div>
           </div>
 
           <hr>
 
           <div class="mb-3">
             <h6>Cambio realizado</h6>
-            <p class="mb-0">${registro.cambio}</p>
+            <div class="mb-0 contenido-enriquecido">${htmlSeguro(registro.cambio)}</div>
           </div>
 
           <div class="mb-3">
@@ -1300,7 +1497,7 @@ function mostrarHistorial(pautaId = "todos") {
           ${registro.observaciones ? `
             <div>
               <h6>Observaciones</h6>
-              <p class="mb-0 text-muted">${registro.observaciones}</p>
+              <div class="mb-0 text-muted contenido-enriquecido">${htmlSeguro(registro.observaciones)}</div>
             </div>
           ` : ""}
         </div>
@@ -1377,26 +1574,18 @@ async function actualizarTodo() {
     localStorage.setItem("usuarioActual", JSON.stringify(usuarioActual));
   } catch (error) {
     console.error("No se pudo validar la sesión:", error);
-    alert("No se pudo validar la sesión. Intenta iniciar sesión nuevamente.");
+    await mostrarAviso("No se pudo validar la sesión. Intenta iniciar sesión nuevamente.", "danger");
     window.location.href = "/login";
     return;
   }
   aplicarPermisos();
 
-  const nombreUsuario = typeof usuarioActual?.usuario === "string"
-    ? usuarioActual.usuario.trim()
-    : "";
-  const avatarUsuario = document.getElementById("user-avatar");
-  const etiquetaUsuario = document.getElementById("user-name");
-  if (avatarUsuario) {
-    avatarUsuario.textContent = Array.from(nombreUsuario)[0]?.toLocaleUpperCase("es") || "";
-  }
-  if (etiquetaUsuario) etiquetaUsuario.textContent = nombreUsuario || "Mi perfil";
+  mostrarUsuarioEnCabecera(usuarioActual);
 
   try {
     await cargarDatosBD();
   } catch (error) {
-    alert(error.message);
+    await mostrarAviso(error.message, "danger");
   }
 
   completarResponsableActual();

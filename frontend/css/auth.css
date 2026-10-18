@@ -12,25 +12,9 @@
     padding: clamp(1.25rem, 4vw, 4rem) !important;
 }
 
-.auth-hero .display-3 {
-    font-size: clamp(2.25rem, 5vw, 4.5rem);
-}
-
-.auth-hero .fs-5 {
-    font-size: clamp(1rem, 1.5vw, 1.25rem) !important;
-}
-
 .auth-mobile-hero {
     height: clamp(8rem, 25vh, 15rem);
     height: clamp(8rem, 25svh, 15rem);
-}
-
-.auth-mobile-hero-content {
-    padding: clamp(1rem, 5vw, 1.5rem);
-}
-
-.auth-mobile-hero h2 {
-    font-size: clamp(1.5rem, 6vw, 2.25rem) !important;
 }
 
 .auth-panel {
@@ -127,4 +111,64 @@
     .auth-footer {
         margin-top: 1rem !important;
     }
+}
+
+/* Identidad Bitácora */
+.auth-page {
+    background-color: #fff;
+}
+
+.auth-hero,
+.auth-mobile-hero {
+    background-color: var(--bit-navy-900);
+    color: #fff;
+}
+
+.auth-hero-logo {
+    width: clamp(14rem, 28vw, 24rem);
+    height: auto;
+}
+
+.auth-hero-lema {
+    max-width: 24rem;
+    margin: clamp(1.5rem, 4vh, 2.5rem) auto 0;
+    color: var(--bit-slate-300);
+    font-size: clamp(0.95rem, 1.2vw, 1.05rem);
+    line-height: 1.6;
+}
+
+.auth-mobile-logo {
+    width: clamp(10rem, 50vw, 14rem);
+    height: auto;
+}
+
+.auth-panel {
+    background-color: #fff;
+}
+
+.auth-kicker {
+    letter-spacing: 0.07em;
+}
+
+.auth-intro h1 {
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--bit-navy-900);
+}
+
+.auth-form .form-control {
+    background-color: #fff;
+}
+
+.auth-form .btn-primary {
+    font-weight: 700;
+}
+
+.auth-form .link-primary {
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.auth-form .link-primary:hover {
+    text-decoration: underline;
 }

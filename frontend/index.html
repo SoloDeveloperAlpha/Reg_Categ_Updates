@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Políticas y Pautas</title>
+    <link rel="icon" href="resource/bitacora-brand/favicons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="resource/bitacora-brand/favicons/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="resource/bitacora-brand/favicons/apple-touch-icon.png">
+    <meta name="theme-color" content="#0f1b2d">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="css/theme.css" rel="stylesheet">
@@ -20,8 +24,8 @@
             <aside class="app-sidebar bg-dark text-white p-0 overflow-hidden">
                 <div class="app-sidebar-layout d-flex flex-column">
                     <div class="app-sidebar-brand d-flex align-items-center justify-content-between border-bottom border-secondary">
-                        <div>
-                            <h2 class="h4 mb-1">Bitácora</h2>
+                        <div class="min-w-0">
+                            <h2 class="mb-2"><img src="images/bitacora-logo-dark.svg" alt="Bitácora" class="app-logo"></h2>
                             <span class="text-secondary">Control de actualizaciones</span>
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-light d-md-none" data-bs-toggle="collapse" data-bs-target="#sidebar-menu-content" aria-controls="sidebar-menu-content" aria-expanded="false" aria-label="Mostrar u ocultar menú de navegación">
@@ -55,10 +59,19 @@
                         <div class="dropdown profile-dropdown">
                             <button id="abrir-perfil" type="button" class="btn border-0 d-flex align-items-center gap-2" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Abrir opciones de perfil">
                                 <span id="user-avatar" class="user-avatar rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-semibold" aria-hidden="true"></span>
-                                <span id="user-name" class="text-truncate"></span>
-                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                                <span class="d-flex flex-column text-start lh-sm user-info">
+                                    <span id="user-name" class="fw-semibold text-truncate"></span>
+                                    <small id="user-role" class="text-body-secondary text-truncate"></small>
+                                </span>
+                                <i class="bi bi-chevron-down small text-body-secondary" aria-hidden="true"></i>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm profile-menu">
+                                <li class="px-3 py-2">
+                                    <div id="user-menu-name" class="fw-semibold text-truncate"></div>
+                                    <div id="user-menu-email" class="small text-body-secondary text-truncate"></div>
+                                    <span id="user-menu-role" class="badge text-bg-primary mt-2"></span>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <button id="abrir-configuracion-perfil" type="button" class="dropdown-item">
                                         <i class="bi bi-gear me-2" aria-hidden="true"></i>Configuración
@@ -96,6 +109,119 @@
                                         <span class="text-muted">Última actualización</span>
                                         <strong id="ultima-actualizacion" class="d-block fs-4 mt-2"></strong>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="paneles-rol mb-4">
+                            <div id="panel-mi-actividad" class="card shadow-sm d-none">
+                                <div class="card-header bg-white">
+                                    <h2 class="h5 mb-1">Mi actividad</h2>
+                                    <p class="text-body-secondary small mb-0">Cambios que has registrado tú</p>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-4">
+                                            <span class="text-body-secondary small d-block">Hoy</span>
+                                            <strong id="mi-actividad-hoy" class="metricas-cifra d-block">0</strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <span class="text-body-secondary small d-block">7 días</span>
+                                            <strong id="mi-actividad-semana" class="metricas-cifra d-block">0</strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <span class="text-body-secondary small d-block">30 días</span>
+                                            <strong id="mi-actividad-mes" class="metricas-cifra d-block">0</strong>
+                                        </div>
+                                    </div>
+                                    <p id="mi-actividad-ultima" class="text-body-secondary small mt-3 mb-0"></p>
+                                </div>
+                            </div>
+
+                            <div id="panel-desactualizadas" class="card shadow-sm d-none">
+                                <div class="card-header bg-white d-flex align-items-start justify-content-between gap-2">
+                                    <div>
+                                        <h2 class="h5 mb-1">Pautas sin actualizar</h2>
+                                        <p class="text-body-secondary small mb-0">Sin cambios hace más de 60 días o sin ninguna actualización</p>
+                                    </div>
+                                    <span id="desactualizadas-total" class="badge bg-warning">0</span>
+                                </div>
+                                <div id="desactualizadas-lista" class="card-body paneles-lista"></div>
+                            </div>
+
+                            <div id="panel-cuentas" class="card shadow-sm d-none">
+                                <div class="card-header bg-white d-flex align-items-start justify-content-between gap-2">
+                                    <div>
+                                        <h2 class="h5 mb-1">Cuentas pendientes de rol</h2>
+                                        <p class="text-body-secondary small mb-0">Registradas con acceso de solo consulta</p>
+                                    </div>
+                                    <span id="cuentas-total" class="badge bg-warning">0</span>
+                                </div>
+                                <div id="cuentas-lista" class="card-body paneles-lista"></div>
+                            </div>
+                        </div>
+
+                        <div id="metricas-actividad" class="card shadow-sm mb-4 d-none" data-requiere-administrador>
+                            <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                <div>
+                                    <h2 class="h5 mb-1">Actividad del equipo</h2>
+                                    <p id="metricas-rango" class="text-body-secondary small mb-0"></p>
+                                </div>
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <div class="btn-group" role="group" aria-label="Periodo de actividad">
+                                        <input type="radio" class="btn-check" name="metricas-periodo" id="metricas-periodo-dia" value="dia" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="metricas-periodo-dia">Hoy</label>
+                                        <input type="radio" class="btn-check" name="metricas-periodo" id="metricas-periodo-semana" value="semana" autocomplete="off" checked>
+                                        <label class="btn btn-outline-secondary btn-sm" for="metricas-periodo-semana">7 días</label>
+                                        <input type="radio" class="btn-check" name="metricas-periodo" id="metricas-periodo-mes" value="mes" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="metricas-periodo-mes">30 días</label>
+                                    </div>
+                                    <button id="metricas-alternar-tabla" type="button" class="btn btn-outline-secondary btn-sm" aria-pressed="false">
+                                        <i class="bi bi-table me-2" aria-hidden="true"></i><span>Ver tabla</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="metricas-cuerpo" class="card-body metricas-cuerpo">
+                                <div id="metricas-mensaje" class="alert alert-danger d-none" role="alert"></div>
+
+                                <div class="row g-3 mb-4">
+                                    <div class="col-sm-4">
+                                        <span class="text-body-secondary small d-block">Cambios registrados</span>
+                                        <strong id="metricas-total" class="metricas-cifra d-block">0</strong>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <span class="text-body-secondary small d-block">Personas activas</span>
+                                        <strong id="metricas-activos" class="metricas-cifra d-block">0</strong>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <span class="text-body-secondary small d-block">Más activo</span>
+                                        <strong id="metricas-lider" class="metricas-cifra metricas-cifra-texto d-block text-truncate">—</strong>
+                                        <span id="metricas-lider-detalle" class="text-body-secondary small"></span>
+                                    </div>
+                                </div>
+
+                                <div id="metricas-graficos" class="row g-4">
+                                    <div id="metricas-bloque-usuarios" class="col-lg-6">
+                                        <h3 class="h6 mb-3">Cambios por persona</h3>
+                                        <div id="metricas-usuarios" class="metricas-usuarios"></div>
+                                    </div>
+                                    <div id="metricas-bloque-serie" class="col-lg-6">
+                                        <h3 class="h6 mb-3">Cambios por día</h3>
+                                        <div id="metricas-serie"></div>
+                                    </div>
+                                </div>
+
+                                <div id="metricas-vista-tabla" class="table-responsive d-none">
+                                    <table id="metricas-tabla" class="table align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th scope="col">Persona</th>
+                                                <th scope="col">Rol</th>
+                                                <th scope="col" class="text-end">Cambios</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -179,7 +305,7 @@
 
                                     <div class="mt-4">
                                         <label for="nueva-pauta-descripcion" class="form-label">Detalle de la pauta</label>
-                                        <textarea id="nueva-pauta-descripcion" class="form-control" rows="6" required></textarea>
+                                        <textarea data-editor-enriquecido id="nueva-pauta-descripcion" class="form-control" rows="6" required></textarea>
                                     </div>
 
                                     <div class="mt-4">
@@ -249,12 +375,12 @@
 
                                     <div class="mt-4">
                                         <label for="cambio" class="form-label">Nuevo detalle de la pauta</label>
-                                        <textarea id="cambio" class="form-control" rows="5" placeholder="Describe exactamente qué cambió..." required></textarea>
+                                        <textarea data-editor-enriquecido id="cambio" class="form-control" rows="5" placeholder="Describe exactamente qué cambió..." required></textarea>
                                     </div>
 
                                     <div class="mt-4">
                                         <label for="observaciones" class="form-label">Observaciones</label>
-                                        <textarea id="observaciones" class="form-control" rows="4" placeholder="Información adicional..."></textarea>
+                                        <textarea data-editor-enriquecido id="observaciones" class="form-control" rows="4" placeholder="Información adicional..."></textarea>
                                     </div>
 
                                     <div class="d-flex gap-2 mt-4">
@@ -378,26 +504,119 @@
                 </div>
             </main>
 
-            <div class="modal fade" id="confirmar-eliminar-pauta-modal" tabindex="-1" aria-labelledby="titulo-confirmar-eliminar-pauta" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2 class="modal-title fs-5" id="titulo-confirmar-eliminar-pauta">Confirmar eliminación</h2>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p class="mb-2">¿Realmente deseas eliminar esta pauta?</p>
-                            <p id="nombre-pauta-eliminar" class="fw-semibold mb-3"></p>
-                            <p class="text-body-secondary small mb-0">También se eliminarán todas las actualizaciones asociadas a esta pauta. Esta acción no se puede deshacer.</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" id="confirmar-eliminar-pauta" class="btn btn-danger"><i class="bi bi-trash me-2" aria-hidden="true"></i>Eliminar pauta</button>
-                        </div>
-                    </div>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmar-eliminar-pauta-modal" tabindex="-1" aria-labelledby="titulo-confirmar-eliminar-pauta" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="titulo-confirmar-eliminar-pauta">Confirmar eliminación</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">¿Realmente deseas eliminar esta pauta?</p>
+                    <p id="nombre-pauta-eliminar" class="fw-semibold mb-3"></p>
+                    <p class="text-body-secondary small mb-0">También se eliminarán todas las actualizaciones asociadas a esta pauta. Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" id="confirmar-eliminar-pauta" class="btn btn-danger"><i class="bi bi-trash me-2" aria-hidden="true"></i>Eliminar pauta</button>
                 </div>
             </div>
+        </div>
+    </div>
 
+    <div class="modal fade" id="detalle-actualizacion-modal" tabindex="-1" aria-labelledby="detalle-actualizacion-titulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="detalle-actualizacion-titulo"></h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <dl class="row mb-4">
+                        <dt class="col-sm-3">Fecha</dt>
+                        <dd class="col-sm-9" id="detalle-actualizacion-fecha"></dd>
+                        <dt class="col-sm-3">Auditor</dt>
+                        <dd class="col-sm-9" id="detalle-actualizacion-responsable"></dd>
+                    </dl>
+                    <section class="mb-4">
+                        <h3 class="h6">Cambio realizado</h3>
+                        <div id="detalle-actualizacion-cambio" class="mb-0 text-break contenido-enriquecido"></div>
+                    </section>
+                    <section>
+                        <h3 class="h6">Observaciones</h3>
+                        <div id="detalle-actualizacion-observaciones" class="mb-0 text-break contenido-enriquecido"></div>
+                    </section>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" id="detalle-actualizacion-editar" class="btn btn-primary d-none"><i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Editar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editar-actualizacion-modal" tabindex="-1" aria-labelledby="editar-actualizacion-titulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <form id="editar-actualizacion-form" class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="editar-actualizacion-titulo">Editar actualización</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <label for="editar-cambio" class="form-label">Cambio realizado</label>
+                        <textarea data-editor-enriquecido id="editar-cambio" class="form-control" rows="5" required></textarea>
+                    </div>
+                    <div>
+                        <label for="editar-observaciones" class="form-label">Observaciones</label>
+                        <textarea data-editor-enriquecido id="editar-observaciones" class="form-control" rows="4"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="editar-actualizacion-guardar" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editar-pauta-modal" tabindex="-1" aria-labelledby="editar-pauta-titulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <form id="editar-pauta-form" class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="editar-pauta-titulo">Editar pauta</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="editar-pauta-categoria" class="form-label">Categoría</label>
+                            <input type="text" id="editar-pauta-categoria" class="form-control" list="editar-pauta-categorias" maxlength="100" required>
+                            <datalist id="editar-pauta-categorias"></datalist>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editar-pauta-nombre" class="form-label">Nombre de la pauta</label>
+                            <input type="text" id="editar-pauta-nombre" class="form-control" maxlength="200" required>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="editar-pauta-descripcion" class="form-label">Detalle de la pauta</label>
+                        <textarea data-editor-enriquecido id="editar-pauta-descripcion" class="form-control" rows="6"></textarea>
+                    </div>
+                    <div>
+                        <label for="editar-pauta-conclusion" class="form-label">Conclusión</label>
+                        <textarea id="editar-pauta-conclusion" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="editar-pauta-guardar" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -419,7 +638,7 @@
                     </dl>
                     <section class="mb-4">
                         <h3 class="h6">Descripción</h3>
-                        <p id="detalle-pauta-descripcion" class="mb-0 text-break"></p>
+                        <div id="detalle-pauta-descripcion" class="mb-0 text-break contenido-enriquecido"></div>
                     </section>
                     <section class="mb-4">
                         <h3 class="h6">Conclusión</h3>
@@ -433,6 +652,10 @@
                         <h3 class="h6">Evidencias</h3>
                         <div id="detalle-pauta-imagenes" class="d-flex flex-wrap gap-3"></div>
                     </section>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" id="detalle-pauta-editar" class="btn btn-primary d-none"><i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Editar</button>
                 </div>
             </div>
         </div>
@@ -453,6 +676,10 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/modales.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/metricas.js"></script>
+    <script src="js/paneles.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
