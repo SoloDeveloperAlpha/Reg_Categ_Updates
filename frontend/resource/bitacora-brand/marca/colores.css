@@ -1,0 +1,31 @@
+/* Bitácora — tokens de color y tipografía */
+:root {
+  --bit-navy-950: #0A1220; /* Fondo oscuro profundo */
+  --bit-navy-900: #0F1B2D; /* Tinta de marca / texto principal */
+  --bit-navy-700: #22344D; /* Superficies oscuras, bordes en modo oscuro */
+  --bit-slate-600: #4A5668; /* Texto secundario fuerte */
+  --bit-slate-500: #5B6778; /* Texto secundario */
+  --bit-slate-400: #8A94A3; /* Placeholders, iconos inactivos (no usar para texto) */
+  --bit-slate-300: #C9D0DA; /* Bordes marcados, texto sobre fondo oscuro */
+  --bit-slate-200: #E3E7ED; /* Bordes y divisores */
+  --bit-slate-100: #EEF1F5; /* Fondo de bloques y filas alternas */
+  --bit-slate-50: #F5F7FA; /* Fondo de la aplicación */
+  --bit-white: #FFFFFF; /* Superficies y tarjetas */
+  --bit-blue-700: #1F46AE; /* Primario: hover / pressed */
+  --bit-blue-600: #2B5BD7; /* Primario: botones, enlaces, acento sobre claro */
+  --bit-blue-500: #4C7DF0; /* Acento del logo, foco, primario sobre oscuro */
+  --bit-blue-300: #9DB8F7; /* Acento suave sobre oscuro */
+  --bit-blue-100: #E6EDFC; /* Fondo de selección y chips informativos */
+  --bit-success: #0E7C66; /* Correcto / completado */
+  --bit-success-bg: #E3F4EF; /* Fondo de estado correcto */
+  --bit-warning: #9A4506; /* Atención / pendiente */
+  --bit-warning-bg: #FDF0DC; /* Fondo de estado de atención */
+  --bit-danger: #C0392B; /* Error / crítico */
+  --bit-danger-bg: #FBE7E4; /* Fondo de estado de error */
+
+  --bit-font: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --bit-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --bit-radius-sm: 6px;
+  --bit-radius-md: 10px;
+  --bit-radius-lg: 16px;
+}
