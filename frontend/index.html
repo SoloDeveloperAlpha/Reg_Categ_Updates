@@ -86,37 +86,46 @@
                     <section id="dashboard" class="section active">
                         <div class="row g-4 mb-4">
                             <div class="col-md-4">
-                                <div class="card shadow-sm h-100">
-                                    <div class="card-body">
-                                        <span class="text-muted">Total de pautas</span>
-                                        <strong id="total-pautas" class="d-block fs-2 mt-2">0</strong>
+                                <div class="card shadow-sm h-100 resumen-card resumen-azul">
+                                    <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                                        <div class="min-w-0">
+                                            <span class="text-muted">Total de pautas</span>
+                                            <strong id="total-pautas" class="resumen-cifra d-block fs-2 mt-2">0</strong>
+                                        </div>
+                                        <span class="resumen-icono" aria-hidden="true"><i class="bi bi-journal-text"></i></span>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="card shadow-sm h-100">
-                                    <div class="card-body">
-                                        <span class="text-muted">Actualizaciones</span>
-                                        <strong id="total-actualizaciones" class="d-block fs-2 mt-2">0</strong>
+                                <div class="card shadow-sm h-100 resumen-card resumen-verde">
+                                    <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                                        <div class="min-w-0">
+                                            <span class="text-muted">Actualizaciones</span>
+                                            <strong id="total-actualizaciones" class="resumen-cifra d-block fs-2 mt-2">0</strong>
+                                        </div>
+                                        <span class="resumen-icono" aria-hidden="true"><i class="bi bi-arrow-repeat"></i></span>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="card shadow-sm h-100">
-                                    <div class="card-body">
-                                        <span class="text-muted">Última actualización</span>
-                                        <strong id="ultima-actualizacion" class="d-block fs-4 mt-2"></strong>
+                                <div class="card shadow-sm h-100 resumen-card resumen-ambar">
+                                    <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                                        <div class="min-w-0">
+                                            <span class="text-muted">Última actualización</span>
+                                            <strong id="ultima-actualizacion" class="resumen-cifra d-block fs-4 mt-2"></strong>
+                                        </div>
+                                        <span class="resumen-icono" aria-hidden="true"><i class="bi bi-calendar-check"></i></span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="paneles-rol mb-4">
-                            <div id="panel-mi-actividad" class="card shadow-sm d-none">
+                            <div id="panel-mi-actividad" class="card shadow-sm panel-tema panel-azul d-none">
                                 <div class="card-header bg-white">
-                                    <h2 class="h5 mb-1">Mi actividad</h2>
+                                    <h2 class="h5 mb-1"><i class="bi bi-person-check me-2" aria-hidden="true"></i>Mi actividad</h2>
                                     <p class="text-body-secondary small mb-0">Cambios que has registrado tú</p>
                                 </div>
                                 <div class="card-body">
@@ -138,10 +147,10 @@
                                 </div>
                             </div>
 
-                            <div id="panel-desactualizadas" class="card shadow-sm d-none">
+                            <div id="panel-desactualizadas" class="card shadow-sm panel-tema panel-ambar d-none">
                                 <div class="card-header bg-white d-flex align-items-start justify-content-between gap-2">
                                     <div>
-                                        <h2 class="h5 mb-1">Pautas sin actualizar</h2>
+                                        <h2 class="h5 mb-1"><i class="bi bi-hourglass-split me-2" aria-hidden="true"></i>Pautas sin actualizar</h2>
                                         <p class="text-body-secondary small mb-0">Sin cambios hace más de 60 días o sin ninguna actualización</p>
                                     </div>
                                     <span id="desactualizadas-total" class="badge bg-warning">0</span>
@@ -149,10 +158,10 @@
                                 <div id="desactualizadas-lista" class="card-body paneles-lista"></div>
                             </div>
 
-                            <div id="panel-cuentas" class="card shadow-sm d-none">
+                            <div id="panel-cuentas" class="card shadow-sm panel-tema panel-rojo d-none">
                                 <div class="card-header bg-white d-flex align-items-start justify-content-between gap-2">
                                     <div>
-                                        <h2 class="h5 mb-1">Cuentas pendientes de rol</h2>
+                                        <h2 class="h5 mb-1"><i class="bi bi-person-exclamation me-2" aria-hidden="true"></i>Cuentas pendientes de rol</h2>
                                         <p class="text-body-secondary small mb-0">Registradas con acceso de solo consulta</p>
                                     </div>
                                     <span id="cuentas-total" class="badge bg-warning">0</span>
@@ -187,15 +196,15 @@
                                 <div class="row g-3 mb-4">
                                     <div class="col-sm-4">
                                         <span class="text-body-secondary small d-block">Cambios registrados</span>
-                                        <strong id="metricas-total" class="metricas-cifra d-block">0</strong>
+                                        <strong id="metricas-total" class="metricas-cifra metricas-cifra-marca d-block">0</strong>
                                     </div>
                                     <div class="col-sm-4">
                                         <span class="text-body-secondary small d-block">Personas activas</span>
-                                        <strong id="metricas-activos" class="metricas-cifra d-block">0</strong>
+                                        <strong id="metricas-activos" class="metricas-cifra metricas-cifra-marca d-block">0</strong>
                                     </div>
                                     <div class="col-sm-4">
                                         <span class="text-body-secondary small d-block">Más activo</span>
-                                        <strong id="metricas-lider" class="metricas-cifra metricas-cifra-texto d-block text-truncate">—</strong>
+                                        <strong id="metricas-lider" class="metricas-cifra metricas-cifra-marca metricas-cifra-texto d-block text-truncate">—</strong>
                                         <span id="metricas-lider-detalle" class="text-body-secondary small"></span>
                                     </div>
                                 </div>

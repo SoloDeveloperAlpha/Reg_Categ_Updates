@@ -4,6 +4,74 @@ let pautaPendienteEliminar = null;
 let botonPendienteEliminar = null;
 let busquedaPautasEjecutada = false;
 const OPCION_NUEVA_CATEGORIA = "__crear_categoria__";
+const TIPOS_IMAGEN = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const MAX_EVIDENCIAS_POR_PAUTA = 5;
+const MAX_BYTES_POR_EVIDENCIA = 10 * 1024 * 1024;
+const MAX_BYTES_EVIDENCIAS_PAUTA = 20 * 1024 * 1024;
+const ETIQUETAS_ROL = {
+  administrador_general: "Administrador general",
+  administrador: "Administrador",
+  operador: "Operador",
+  consulta: "Consulta"
+};
+
+const $ = (id) => document.getElementById(id);
+const mostrarModal = (id) => bootstrap.Modal.getOrCreateInstance($(id)).show();
+const ocultarModal = (id) => bootstrap.Modal.getOrCreateInstance($(id)).hide();
+const idPauta = (pauta) => pauta.bdId || pauta.id;
+const buscarPauta = (id) => pautas.find((p) => p.bdId === id || p.id === id);
+const urlImagenes = (pautaId, imagenId = "") =>
+  `/api/pautas/${encodeURIComponent(pautaId)}/imagenes${imagenId ? `/${encodeURIComponent(imagenId)}` : ""}`;
+const porFechaDesc = (a, b) => new Date(b.fecha) - new Date(a.fecha);
+const claseBoton = "btn p-0 border-0 bg-transparent text-body text-start fw-semibold";
+
+function fechaLocal() {
+  const f = new Date();
+  return [f.getFullYear(), String(f.getMonth() + 1).padStart(2, "0"), String(f.getDate()).padStart(2, "0")].join("-");
+}
+
+function el(etiqueta, clase = "", texto = "", atributos = {}) {
+  const nodo = document.createElement(etiqueta);
+  if (clase) nodo.className = clase;
+  if (texto) nodo.textContent = texto;
+  Object.entries(atributos).forEach(([clave, valor]) => nodo.setAttribute(clave, valor));
+  return nodo;
+}
+
+function mensaje(texto, clase = "text-body-secondary mb-0") {
+  return el("p", clase, texto);
+}
+
+async function enviar(url, metodo, cuerpo, mensajeError) {
+  const respuesta = await fetch(url, {
+    method: metodo,
+    headers: { "Content-Type": "application/json" },
+    body: cuerpo && JSON.stringify(cuerpo)
+  }).catch(() => {
+    throw new Error("No se pudo conectar con el servidor.");
+  });
+  const resultado = await respuesta.json().catch(() => ({}));
+  if (!respuesta.ok) throw new Error(resultado.mensaje || mensajeError);
+  return resultado;
+}
+
+async function guardarConBoton(idBoton, accion) {
+  const guardar = $(idBoton);
+  guardar.disabled = true;
+  try {
+    await accion();
+  } catch (error) {
+    await mostrarAviso(error.message, "danger");
+  } finally {
+    guardar.disabled = false;
+  }
+}
+
+function abrirTrasCerrar(idDetalle, abrir) {
+  const modalDetalle = $(idDetalle);
+  modalDetalle.addEventListener("hidden.bs.modal", abrir, { once: true });
+  bootstrap.Modal.getOrCreateInstance(modalDetalle).hide();
+}
 
 async function cargarDatosBD() {
   const [respuestaPautas, respuestaActualizaciones] = await Promise.all([
@@ -34,38 +102,27 @@ function obtenerUsuarioActual() {
   }
 }
 
-function puedeEditar() {
-  return ["administrador_general", "administrador", "operador"].includes(obtenerUsuarioActual()?.rol);
-}
-
-function esAdministrador() {
-  return ["administrador_general", "administrador"].includes(obtenerUsuarioActual()?.rol);
-}
-
-function esAdministradorGeneral() {
-  return obtenerUsuarioActual()?.rol === "administrador_general";
-}
+const puedeEditar = () => ["administrador_general", "administrador", "operador"].includes(obtenerUsuarioActual()?.rol);
+const esAdministrador = () => ["administrador_general", "administrador"].includes(obtenerUsuarioActual()?.rol);
+const esAdministradorGeneral = () => obtenerUsuarioActual()?.rol === "administrador_general";
 
 function aplicarPermisos() {
-  document.querySelectorAll("[data-requiere-escritura]").forEach((elemento) => {
-    if (elemento.classList.contains("section")) return;
-    elemento.classList.toggle("d-none", !puedeEditar());
-  });
-  document.querySelectorAll("[data-requiere-administrador]").forEach((elemento) => {
-    elemento.classList.toggle("d-none", !esAdministrador());
-  });
-  document.querySelectorAll("[data-requiere-administrador-general]").forEach((elemento) => {
-    if (elemento.classList.contains("section")) return;
-    elemento.classList.toggle("d-none", !esAdministradorGeneral());
+  [
+    ["data-requiere-escritura", puedeEditar(), true],
+    ["data-requiere-administrador", esAdministrador(), false],
+    ["data-requiere-administrador-general", esAdministradorGeneral(), true]
+  ].forEach(([atributo, permitido, omitirSecciones]) => {
+    document.querySelectorAll(`[${atributo}]`).forEach((elemento) => {
+      if (omitirSecciones && elemento.classList.contains("section")) return;
+      elemento.classList.toggle("d-none", !permitido);
+    });
   });
 }
 
 function completarResponsableActual() {
-  const responsableInput = document.getElementById("responsable");
+  const responsableInput = $("responsable");
   if (!responsableInput) return;
-
-  const usuarioActual = obtenerUsuarioActual();
-  responsableInput.value = usuarioActual?.usuario || "";
+  responsableInput.value = obtenerUsuarioActual()?.usuario || "";
   responsableInput.readOnly = true;
 }
 
@@ -86,71 +143,55 @@ function aplicarPreferencias() {
   const preferencias = obtenerPreferencias();
   document.body.dataset.bsTheme = preferencias.tema;
   document.body.classList.toggle("compact-ui", preferencias.compacta);
-
-  const temaInput = document.getElementById("preferencia-tema");
-  const compactaInput = document.getElementById("preferencia-compacta");
-  if (temaInput) temaInput.value = preferencias.tema;
-  if (compactaInput) compactaInput.checked = preferencias.compacta;
+  if ($("preferencia-tema")) $("preferencia-tema").value = preferencias.tema;
+  if ($("preferencia-compacta")) $("preferencia-compacta").checked = preferencias.compacta;
 }
 
 const menuItems = document.querySelectorAll(".menu-item");
 const sections = document.querySelectorAll(".section");
-const pageTitle = document.getElementById("page-title");
-const pageDescription = document.getElementById("page-description");
-const logoutButton = document.getElementById("cerrar-sesion");
-const openProfileSettingsButton = document.getElementById("abrir-configuracion-perfil");
+
+const TITULOS_SECCION = {
+  dashboard: ["Dashboard", "Resumen de las políticas y pautas registradas."],
+  pautas: ["Políticas y Pautas", "Consulta las pautas actualmente registradas."],
+  actualizacion: ["Nueva actualización", "Registra un nuevo cambio realizado sobre una pauta."],
+  "nueva-pauta": ["Nueva pauta", "Registra una pauta nueva dentro de una categoría."],
+  historial: ["Historial", "Consulta todos los cambios realizados."],
+  usuarios: ["Usuarios y roles", "Administra los permisos de acceso."],
+  perfil: ["Perfil y configuración", "Administra los datos de tu cuenta y tus preferencias."]
+};
 
 function mostrarSeccion(sectionId, menuActivo = null) {
-  const seccionSolicitada = document.getElementById(sectionId);
+  const seleccionada = $(sectionId);
   if (
-    (seccionSolicitada?.hasAttribute("data-requiere-escritura") && !puedeEditar()) ||
-    (seccionSolicitada?.hasAttribute("data-requiere-administrador-general") && !esAdministradorGeneral())
+    (seleccionada?.hasAttribute("data-requiere-escritura") && !puedeEditar()) ||
+    (seleccionada?.hasAttribute("data-requiere-administrador-general") && !esAdministradorGeneral())
   ) return;
 
   menuItems.forEach((menu) => menu.classList.remove("active"));
-  if (menuActivo) menuActivo.classList.add("active");
+  menuActivo?.classList.add("active");
   sections.forEach((section) => {
     section.classList.add("d-none");
     section.classList.remove("active");
   });
+  seleccionada?.classList.remove("d-none");
+  seleccionada?.classList.add("active");
 
-  const selectedSection = document.getElementById(sectionId);
-  if (selectedSection) {
-    selectedSection.classList.remove("d-none");
-    selectedSection.classList.add("active");
+  const titulo = TITULOS_SECCION[sectionId];
+  if (!titulo) return;
+  $("page-title").textContent = titulo[0];
+  $("page-description").textContent = titulo[1];
+}
+
+$("cerrar-sesion")?.addEventListener("click", async () => {
+  try {
+    const response = await fetch("/api/auth/logout", { method: "POST" });
+    if (!response.ok) console.error("No se pudo invalidar la sesión en el servidor.");
+  } catch (error) {
+    console.error("No se pudo conectar con el servidor para cerrar sesión:", error);
   }
-
-  actualizarTitulo(sectionId);
-}
-
-if (logoutButton) {
-  logoutButton.addEventListener("click", async () => {
-    try {
-      const response = await fetch("/api/auth/logout", { method: "POST" });
-      if (!response.ok) console.error("No se pudo invalidar la sesión en el servidor.");
-    } catch (error) {
-      console.error("No se pudo conectar con el servidor para cerrar sesión:", error);
-    }
-    localStorage.removeItem("usuarioActual");
-    window.location.href = "/login";
-  });
-}
-
-function actualizarTitulo(section) {
-  const titulos = {
-    dashboard: ["Dashboard", "Resumen de las políticas y pautas registradas."],
-    pautas: ["Políticas y Pautas", "Consulta las pautas actualmente registradas."],
-    actualizacion: ["Nueva actualización", "Registra un nuevo cambio realizado sobre una pauta."],
-    "nueva-pauta": ["Nueva pauta", "Registra una pauta nueva dentro de una categoría."],
-    historial: ["Historial", "Consulta todos los cambios realizados."],
-    usuarios: ["Usuarios y roles", "Administra los permisos de acceso."],
-    perfil: ["Perfil y configuración", "Administra los datos de tu cuenta y tus preferencias."]
-  };
-
-  if (!titulos[section]) return;
-  pageTitle.textContent = titulos[section][0];
-  pageDescription.textContent = titulos[section][1];
-}
+  localStorage.removeItem("usuarioActual");
+  window.location.href = "/login";
+});
 
 menuItems.forEach((item) => {
   item.addEventListener("click", () => {
@@ -158,7 +199,7 @@ menuItems.forEach((item) => {
     mostrarSeccion(sectionId, item);
     if (sectionId === "usuarios" && esAdministradorGeneral()) cargarUsuarios();
 
-    const menuDesplegable = document.getElementById("sidebar-menu-content");
+    const menuDesplegable = $("sidebar-menu-content");
     if (menuDesplegable && window.matchMedia("(max-width: 767.98px)").matches) {
       const ocultarMenu = () => bootstrap.Collapse.getOrCreateInstance(menuDesplegable).hide();
       if (menuDesplegable.classList.contains("collapsing")) {
@@ -170,32 +211,19 @@ menuItems.forEach((item) => {
   });
 });
 
-if (openProfileSettingsButton) {
-  openProfileSettingsButton.addEventListener("click", () => mostrarSeccion("perfil"));
+$("abrir-configuracion-perfil")?.addEventListener("click", () => mostrarSeccion("perfil"));
+
+function mostrarMensajePerfil(texto, tipo) {
+  const aviso = $("perfil-mensaje");
+  aviso.textContent = texto;
+  aviso.className = `alert alert-${tipo}`;
 }
-
-const profileForm = document.getElementById("form-perfil");
-const profileMessage = document.getElementById("perfil-mensaje");
-const profileSaveButton = document.getElementById("guardar-perfil");
-
-function mostrarMensajePerfil(message, type) {
-  profileMessage.textContent = message;
-  profileMessage.className = `alert alert-${type}`;
-}
-
-const ETIQUETAS_ROL = {
-  administrador_general: "Administrador general",
-  administrador: "Administrador",
-  operador: "Operador",
-  consulta: "Consulta"
-};
 
 function mostrarUsuarioEnCabecera(usuario) {
   const nombre = typeof usuario?.usuario === "string" ? usuario.usuario.trim() : "";
   const rol = ETIQUETAS_ROL[usuario?.rol] || "Usuario";
   const asignar = (id, texto) => {
-    const elemento = document.getElementById(id);
-    if (elemento) elemento.textContent = texto;
+    if ($(id)) $(id).textContent = texto;
   };
   asignar("user-avatar", Array.from(nombre)[0]?.toLocaleUpperCase("es") || "");
   asignar("user-name", nombre || "Mi perfil");
@@ -208,45 +236,36 @@ function mostrarUsuarioEnCabecera(usuario) {
 function actualizarDatosPerfil(usuario) {
   localStorage.setItem("usuarioActual", JSON.stringify(usuario));
   mostrarUsuarioEnCabecera(usuario);
-  document.getElementById("perfil-usuario").value = usuario.usuario;
-  document.getElementById("perfil-correo").value = usuario.correo_electronico;
+  $("perfil-usuario").value = usuario.usuario;
+  $("perfil-correo").value = usuario.correo_electronico;
 }
 
+const profileForm = $("form-perfil");
 if (profileForm) {
   const usuarioActual = obtenerUsuarioActual();
   if (usuarioActual) actualizarDatosPerfil(usuarioActual);
 
   profileForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    profileMessage.classList.add("d-none");
+    $("perfil-mensaje").classList.add("d-none");
 
-    const contrasenaNueva = document.getElementById("perfil-contrasena-nueva").value;
-    const confirmarContrasena = document.getElementById("perfil-confirmar-contrasena").value;
+    const contrasenaNueva = $("perfil-contrasena-nueva").value;
+    const confirmarContrasena = $("perfil-confirmar-contrasena").value;
     if (contrasenaNueva !== confirmarContrasena) {
       mostrarMensajePerfil("Las contraseñas nuevas no coinciden.", "danger");
       return;
     }
 
-    profileSaveButton.disabled = true;
+    $("guardar-perfil").disabled = true;
     try {
-      const response = await fetch("/api/auth/perfil", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id_usuario: obtenerUsuarioActual()?.id_usuario,
-          usuario: document.getElementById("perfil-usuario").value,
-          correo_electronico: document.getElementById("perfil-correo").value,
-          contrasenaActual: document.getElementById("perfil-contrasena-actual").value,
-          contrasenaNueva,
-          confirmarContrasena
-        })
-      });
-      const result = await response.json();
-
-      if (!response.ok) {
-        mostrarMensajePerfil(result.mensaje || "No se pudieron guardar los cambios.", "danger");
-        return;
-      }
+      const result = await enviar("/api/auth/perfil", "PUT", {
+        id_usuario: obtenerUsuarioActual()?.id_usuario,
+        usuario: $("perfil-usuario").value,
+        correo_electronico: $("perfil-correo").value,
+        contrasenaActual: $("perfil-contrasena-actual").value,
+        contrasenaNueva,
+        confirmarContrasena
+      }, "No se pudieron guardar los cambios.");
 
       profileForm.reset();
       actualizarDatosPerfil(result.usuario);
@@ -254,51 +273,43 @@ if (profileForm) {
       completarResponsableActual();
       mostrarMensajePerfil(result.mensaje, "success");
     } catch (error) {
-      mostrarMensajePerfil("No se pudo conectar con el servidor.", "danger");
+      mostrarMensajePerfil(error.message, "danger");
     } finally {
-      profileSaveButton.disabled = false;
+      $("guardar-perfil").disabled = false;
     }
   });
 }
 
 function guardarPreferencias() {
-  const preferencesMessage = document.getElementById("preferencias-mensaje");
-  const preferencias = {
-    tema: document.getElementById("preferencia-tema").value,
-    compacta: document.getElementById("preferencia-compacta").checked
-  };
-
+  const aviso = $("preferencias-mensaje");
+  let exito = true;
   try {
-    localStorage.setItem("preferenciasUsuario", JSON.stringify(preferencias));
+    localStorage.setItem("preferenciasUsuario", JSON.stringify({
+      tema: $("preferencia-tema").value,
+      compacta: $("preferencia-compacta").checked
+    }));
     aplicarPreferencias();
-    preferencesMessage.textContent = "Preferencias guardadas.";
-    preferencesMessage.classList.remove("d-none", "text-danger");
-    preferencesMessage.classList.add("text-success");
   } catch (error) {
-    preferencesMessage.textContent = "No se pudieron guardar las preferencias en este navegador.";
-    preferencesMessage.classList.remove("d-none", "text-success");
-    preferencesMessage.classList.add("text-danger");
+    exito = false;
   }
+  aviso.textContent = exito ? "Preferencias guardadas." : "No se pudieron guardar las preferencias en este navegador.";
+  aviso.classList.remove("d-none");
+  aviso.classList.toggle("text-success", exito);
+  aviso.classList.toggle("text-danger", !exito);
 }
 
-document.getElementById("preferencia-tema").addEventListener("change", guardarPreferencias);
-document.getElementById("preferencia-compacta").addEventListener("change", guardarPreferencias);
+$("preferencia-tema").addEventListener("change", guardarPreferencias);
+$("preferencia-compacta").addEventListener("change", guardarPreferencias);
 aplicarPreferencias();
 
 function actualizarDashboard() {
-  document.getElementById("total-pautas").textContent = pautas.length;
-  document.getElementById("total-actualizaciones").textContent = actualizaciones.length;
+  $("total-pautas").textContent = pautas.length;
+  $("total-actualizaciones").textContent = actualizaciones.length;
   window.actualizarMetricas?.();
   window.actualizarPaneles?.();
-
-  if (actualizaciones.length === 0) {
-    document.getElementById("ultima-actualizacion").textContent = "--";
-    mostrarUltimosCambios();
-    return;
-  }
-
-  const ultima = [...actualizaciones].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
-  document.getElementById("ultima-actualizacion").textContent = ultima.fecha;
+  $("ultima-actualizacion").textContent = actualizaciones.length
+    ? [...actualizaciones].sort(porFechaDesc)[0].fecha
+    : "--";
   mostrarUltimosCambios();
 }
 
@@ -308,37 +319,30 @@ function botonEditarActualizacion(pauta) {
   return `<button type="button" class="btn btn-sm btn-outline-primary ms-1" data-accion="editar" title="${etiqueta}" aria-label="${etiqueta}" aria-haspopup="dialog"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>`;
 }
 
-function buscarActualizacion(id) {
-  return actualizaciones.find((item) => Number(item.id) === Number(id));
-}
-
-function nombrePautaDe(actualizacion) {
-  const pauta = pautas.find((p) => p.bdId === actualizacion.pautaId || p.id === actualizacion.pautaId);
-  return pauta?.nombre || "Pauta eliminada";
-}
+const buscarActualizacion = (id) => actualizaciones.find((item) => Number(item.id) === Number(id));
+const nombrePautaDe = (actualizacion) => buscarPauta(actualizacion.pautaId)?.nombre || "Pauta eliminada";
 
 let actualizacionEnDetalle = null;
 let actualizacionEnEdicion = null;
 
 function mostrarDetalleActualizacion(actualizacion) {
   actualizacionEnDetalle = actualizacion;
-  document.getElementById("detalle-actualizacion-titulo").textContent = nombrePautaDe(actualizacion);
-  document.getElementById("detalle-actualizacion-fecha").textContent = actualizacion.fecha || "-";
-  document.getElementById("detalle-actualizacion-responsable").textContent = actualizacion.responsable || "-";
-  document.getElementById("detalle-actualizacion-cambio").innerHTML = htmlSeguro(actualizacion.cambio);
-  document.getElementById("detalle-actualizacion-observaciones").innerHTML =
+  $("detalle-actualizacion-titulo").textContent = nombrePautaDe(actualizacion);
+  $("detalle-actualizacion-fecha").textContent = actualizacion.fecha || "-";
+  $("detalle-actualizacion-responsable").textContent = actualizacion.responsable || "-";
+  $("detalle-actualizacion-cambio").innerHTML = htmlSeguro(actualizacion.cambio);
+  $("detalle-actualizacion-observaciones").innerHTML =
     actualizacion.observaciones?.trim() ? htmlSeguro(actualizacion.observaciones) : "Sin observaciones.";
-  document.getElementById("detalle-actualizacion-editar").classList.toggle("d-none", !puedeEditar());
-  bootstrap.Modal.getOrCreateInstance(document.getElementById("detalle-actualizacion-modal")).show();
+  $("detalle-actualizacion-editar").classList.toggle("d-none", !puedeEditar());
+  mostrarModal("detalle-actualizacion-modal");
 }
 
 function abrirEdicionActualizacion(actualizacion) {
   actualizacionEnEdicion = actualizacion;
-  document.getElementById("editar-actualizacion-titulo").textContent =
-    `Editar actualización · ${nombrePautaDe(actualizacion)}`;
-  document.getElementById("editar-cambio").value = actualizacion.cambio || "";
-  document.getElementById("editar-observaciones").value = actualizacion.observaciones || "";
-  bootstrap.Modal.getOrCreateInstance(document.getElementById("editar-actualizacion-modal")).show();
+  $("editar-actualizacion-titulo").textContent = `Editar actualización · ${nombrePautaDe(actualizacion)}`;
+  $("editar-cambio").value = actualizacion.cambio || "";
+  $("editar-observaciones").value = actualizacion.observaciones || "";
+  mostrarModal("editar-actualizacion-modal");
 }
 
 function manejarClickActualizacion(evento) {
@@ -349,52 +353,38 @@ function manejarClickActualizacion(evento) {
   return mostrarDetalleActualizacion(actualizacion);
 }
 
-document.getElementById("ultimos-cambios")?.addEventListener("click", manejarClickActualizacion);
-document.getElementById("timeline")?.addEventListener("click", (evento) => {
+$("ultimos-cambios")?.addEventListener("click", manejarClickActualizacion);
+$("timeline")?.addEventListener("click", (evento) => {
   if (evento.target.closest('[data-accion="editar"]')) manejarClickActualizacion(evento);
 });
 
-document.getElementById("detalle-actualizacion-editar")?.addEventListener("click", () => {
+$("detalle-actualizacion-editar")?.addEventListener("click", () => {
   const actualizacion = actualizacionEnDetalle;
-  if (!actualizacion) return;
-  const modalDetalle = document.getElementById("detalle-actualizacion-modal");
-  modalDetalle.addEventListener("hidden.bs.modal", () => abrirEdicionActualizacion(actualizacion), { once: true });
-  bootstrap.Modal.getOrCreateInstance(modalDetalle).hide();
+  if (actualizacion) abrirTrasCerrar("detalle-actualizacion-modal", () => abrirEdicionActualizacion(actualizacion));
 });
 
-document.getElementById("editar-actualizacion-form")?.addEventListener("submit", async (evento) => {
+$("editar-actualizacion-form")?.addEventListener("submit", async (evento) => {
   evento.preventDefault();
   const actualizacion = actualizacionEnEdicion;
   if (!actualizacion) return;
-  const guardar = document.getElementById("editar-actualizacion-guardar");
-  guardar.disabled = true;
-  try {
-    const respuesta = await fetch(`/api/actualizaciones/${encodeURIComponent(actualizacion.id)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cambio: document.getElementById("editar-cambio").value,
-        observaciones: document.getElementById("editar-observaciones").value
-      })
-    });
-    const resultado = await respuesta.json().catch(() => ({}));
-    if (!respuesta.ok) throw new Error(resultado.mensaje || "No se pudo guardar la edición.");
-
+  await guardarConBoton("editar-actualizacion-guardar", async () => {
+    const resultado = await enviar(
+      `/api/actualizaciones/${encodeURIComponent(actualizacion.id)}`,
+      "PUT",
+      { cambio: $("editar-cambio").value, observaciones: $("editar-observaciones").value },
+      "No se pudo guardar la edición."
+    );
     actualizacion.cambio = resultado.cambio;
     actualizacion.observaciones = resultado.observaciones;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("editar-actualizacion-modal")).hide();
+    ocultarModal("editar-actualizacion-modal");
     mostrarUltimosCambios();
     mostrarHistorial();
     await mostrarAviso("La actualización se editó correctamente.", "success");
-  } catch (error) {
-    await mostrarAviso(error.message, "danger");
-  } finally {
-    guardar.disabled = false;
-  }
+  });
 });
 
 function mostrarUltimosCambios() {
-  const contenedor = document.getElementById("ultimos-cambios");
+  const contenedor = $("ultimos-cambios");
 
   if (actualizaciones.length === 0) {
     contenedor.innerHTML = '<p class="text-muted mb-0">No existen actualizaciones registradas.</p>';
@@ -402,20 +392,20 @@ function mostrarUltimosCambios() {
   }
 
   const ultimas = [...actualizaciones]
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha) || Number(b.id) - Number(a.id))
+    .sort((a, b) => porFechaDesc(a, b) || Number(b.id) - Number(a.id))
     .slice(0, 5);
 
   contenedor.innerHTML = `
     <div class="ultimos-cambios-list">
       ${ultimas.map((actualizacion) => {
-        const pauta = pautas.find((p) => p.bdId === actualizacion.pautaId || p.id === actualizacion.pautaId);
+        const pauta = buscarPauta(actualizacion.pautaId);
         return `
           <article class="ultimos-cambios-item" data-actualizacion-id="${actualizacion.id}">
             <div class="ultimos-cambios-indicador" aria-hidden="true"></div>
             <div class="min-w-0 flex-grow-1">
               <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-1">
                 <h3 class="h6 mb-0 text-truncate">
-                  <button type="button" class="btn p-0 border-0 bg-transparent text-body text-start fw-semibold text-truncate mw-100" aria-haspopup="dialog" aria-label="Consultar actualización de ${escaparHtml(pauta?.nombre || "pauta eliminada")}">${escaparHtml(pauta?.nombre || "Pauta eliminada")}</button>
+                  <button type="button" class="${claseBoton} text-truncate mw-100" aria-haspopup="dialog" aria-label="Consultar actualización de ${escaparHtml(pauta?.nombre || "pauta eliminada")}">${escaparHtml(pauta?.nombre || "Pauta eliminada")}</button>
                 </h3>
                 <div class="ultimos-cambios-meta text-muted small">
                   <time datetime="${escaparHtml(actualizacion.fecha)}">${escaparHtml(actualizacion.fecha)}</time>
@@ -438,438 +428,306 @@ let pautaEnDetalle = null;
 
 function abrirEdicionPauta(pauta) {
   pautaEnEdicion = pauta;
-  document.getElementById("editar-pauta-titulo").textContent = `Editar pauta · ${pauta.nombre}`;
-  document.getElementById("editar-pauta-categoria").value = pauta.categoria || "";
-  document.getElementById("editar-pauta-nombre").value = pauta.nombre || "";
-  document.getElementById("editar-pauta-descripcion").value = pauta.descripcion || "";
-  document.getElementById("editar-pauta-conclusion").value = pauta.conclusion || "";
-
-  const categorias = [...new Set(pautas.map((item) => item.categoria))];
-  document.getElementById("editar-pauta-categorias").replaceChildren(
-    ...categorias.map((categoria) => new Option(categoria))
-  );
-  bootstrap.Modal.getOrCreateInstance(document.getElementById("editar-pauta-modal")).show();
+  $("editar-pauta-titulo").textContent = `Editar pauta · ${pauta.nombre}`;
+  $("editar-pauta-categoria").value = pauta.categoria || "";
+  $("editar-pauta-nombre").value = pauta.nombre || "";
+  $("editar-pauta-descripcion").value = pauta.descripcion || "";
+  $("editar-pauta-conclusion").value = pauta.conclusion || "";
+  $("editar-pauta-categorias").replaceChildren(...categoriasUnicas().map((categoria) => new Option(categoria)));
+  mostrarModal("editar-pauta-modal");
 }
 
-document.getElementById("detalle-pauta-editar")?.addEventListener("click", () => {
+$("detalle-pauta-editar")?.addEventListener("click", () => {
   const pauta = pautaEnDetalle;
-  if (!pauta) return;
-  const modalDetalle = document.getElementById("detalle-pauta-modal");
-  modalDetalle.addEventListener("hidden.bs.modal", () => abrirEdicionPauta(pauta), { once: true });
-  bootstrap.Modal.getOrCreateInstance(modalDetalle).hide();
+  if (pauta) abrirTrasCerrar("detalle-pauta-modal", () => abrirEdicionPauta(pauta));
 });
 
-document.getElementById("editar-pauta-form")?.addEventListener("submit", async (evento) => {
+$("editar-pauta-form")?.addEventListener("submit", async (evento) => {
   evento.preventDefault();
   const pauta = pautaEnEdicion;
   if (!pauta) return;
-  const guardar = document.getElementById("editar-pauta-guardar");
-  guardar.disabled = true;
-  try {
-    const respuesta = await fetch(`/api/pautas/${encodeURIComponent(pauta.bdId || pauta.id)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        categoria: document.getElementById("editar-pauta-categoria").value,
-        nombre: document.getElementById("editar-pauta-nombre").value,
-        descripcion: document.getElementById("editar-pauta-descripcion").value,
-        conclusion: document.getElementById("editar-pauta-conclusion").value
-      })
-    });
-    const resultado = await respuesta.json().catch(() => ({}));
-    if (!respuesta.ok) throw new Error(resultado.mensaje || "No se pudo guardar la pauta.");
+  await guardarConBoton("editar-pauta-guardar", async () => {
+    await enviar(`/api/pautas/${encodeURIComponent(idPauta(pauta))}`, "PUT", {
+      categoria: $("editar-pauta-categoria").value,
+      nombre: $("editar-pauta-nombre").value,
+      descripcion: $("editar-pauta-descripcion").value,
+      conclusion: $("editar-pauta-conclusion").value
+    }, "No se pudo guardar la pauta.");
 
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("editar-pauta-modal")).hide();
-    await cargarDatosBD();
-    mostrarPautas();
-    actualizarDashboard();
-    mostrarHistorial();
+    ocultarModal("editar-pauta-modal");
+    await recargarPautas();
     await mostrarAviso("La pauta se editó correctamente.", "success");
-  } catch (error) {
-    await mostrarAviso(error.message, "danger");
-  } finally {
-    guardar.disabled = false;
-  }
+  });
 });
 
-function mostrarPautas(busquedaSolicitada = false) {
-  const tabla = document.getElementById("tabla-pautas");
-  const inputBusqueda = document.getElementById("buscar-pauta");
-  const filtroCategoria = document.getElementById("filtro-categoria-pauta");
+async function recargarPautas() {
+  await cargarDatosBD();
+  mostrarPautas();
+  actualizarDashboard();
+  mostrarHistorial();
+}
 
+function botonIcono(clase, icono, titulo, abreDialogo, alClick) {
+  const boton = el("button", `btn btn-sm ${clase}`, "", { type: "button", title: titulo, "aria-label": titulo });
+  if (abreDialogo) boton.setAttribute("aria-haspopup", "dialog");
+  boton.innerHTML = `<i class="bi bi-${icono}" aria-hidden="true"></i>`;
+  boton.addEventListener("click", alClick);
+  return boton;
+}
+
+function filaMensaje(texto) {
+  return `<tr><td colspan="5" class="text-center text-muted py-4">${texto}</td></tr>`;
+}
+
+function mostrarPautas(busquedaSolicitada = false) {
+  const tabla = $("tabla-pautas");
   if (busquedaSolicitada) busquedaPautasEjecutada = true;
 
-  const textoBusqueda = (inputBusqueda?.value || "").toLowerCase().trim();
-  const categoriaSeleccionada = filtroCategoria?.value || "";
+  const textoBusqueda = ($("buscar-pauta")?.value || "").toLowerCase().trim();
+  const categoriaSeleccionada = $("filtro-categoria-pauta")?.value || "";
 
   tabla.innerHTML = "";
   if (!textoBusqueda && !categoriaSeleccionada && !busquedaPautasEjecutada) {
-    tabla.innerHTML = `
-      <tr>
-        <td colspan="5" class="text-center text-muted py-4">Selecciona una categoría o escribe una búsqueda y pulsa Buscar para ver las pautas.</td>
-      </tr>
-    `;
+    tabla.innerHTML = filaMensaje("Selecciona una categoría o escribe una búsqueda y pulsa Buscar para ver las pautas.");
     actualizarSelectPautas();
     return;
   }
 
-  const pautasFiltradas = pautas.filter((pauta) => {
-    const coincideTexto =
-      pauta.nombre.toLowerCase().includes(textoBusqueda) ||
-      pauta.categoria.toLowerCase().includes(textoBusqueda);
-    const coincideCategoria = !categoriaSeleccionada || pauta.categoria === categoriaSeleccionada;
-
-    return coincideTexto && coincideCategoria;
-  });
+  const pautasFiltradas = pautas.filter((pauta) =>
+    (pauta.nombre.toLowerCase().includes(textoBusqueda) || pauta.categoria.toLowerCase().includes(textoBusqueda)) &&
+    (!categoriaSeleccionada || pauta.categoria === categoriaSeleccionada)
+  );
 
   if (pautasFiltradas.length === 0) {
-    tabla.innerHTML = `
-      <tr>
-        <td colspan="5" class="text-center text-muted py-4">No se encontraron pautas con los filtros actuales.</td>
-      </tr>
-    `;
+    tabla.innerHTML = filaMensaje("No se encontraron pautas con los filtros actuales.");
     actualizarSelectPautas();
     return;
   }
 
   pautasFiltradas.forEach((pauta) => {
-    const fila = document.createElement("tr");
-    const nombre = document.createElement("td");
-    const botonDetalle = document.createElement("button");
-    botonDetalle.type = "button";
-    botonDetalle.className = "btn p-0 border-0 bg-transparent text-body text-start fw-semibold";
-    botonDetalle.textContent = pauta.nombre;
-    botonDetalle.setAttribute("aria-label", `Consultar pauta ${pauta.nombre}`);
-    botonDetalle.setAttribute("aria-haspopup", "dialog");
+    const botonDetalle = el("button", claseBoton, pauta.nombre, {
+      type: "button",
+      "aria-label": `Consultar pauta ${pauta.nombre}`,
+      "aria-haspopup": "dialog"
+    });
     botonDetalle.addEventListener("click", () => mostrarDetallePauta(pauta));
-    nombre.appendChild(botonDetalle);
 
-    const categoria = document.createElement("td");
-    categoria.textContent = pauta.categoria;
-
-    const fecha = document.createElement("td");
-    fecha.textContent = pauta.fecha || "-";
-
-    const responsable = document.createElement("td");
-    responsable.textContent = pauta.responsable || "-";
-
-    const acciones = document.createElement("td");
-    const botonesAccion = document.createElement("div");
-    botonesAccion.className = "d-flex flex-wrap gap-2";
-
-    const botonHistorial = document.createElement("button");
-    botonHistorial.type = "button";
-    botonHistorial.className = "btn btn-sm btn-outline-primary";
-    botonHistorial.innerHTML = '<i class="bi bi-clock-history" aria-hidden="true"></i>';
-    botonHistorial.title = `Ver historial de ${pauta.nombre}`;
-    botonHistorial.setAttribute("aria-label", `Ver historial de ${pauta.nombre}`);
-    botonHistorial.addEventListener("click", () => verHistorial(pauta.bdId || pauta.id));
-
+    const botones = [
+      botonIcono("btn-outline-primary", "clock-history", `Ver historial de ${pauta.nombre}`, false,
+        () => verHistorial(idPauta(pauta)))
+    ];
     if (pauta.cantidadImagenes > 0) {
-      const botonEvidencias = document.createElement("button");
-      botonEvidencias.type = "button";
-      botonEvidencias.className = "btn btn-sm btn-outline-primary";
-      botonEvidencias.innerHTML = '<i class="bi bi-images" aria-hidden="true"></i>';
-      botonEvidencias.title = `Ver ${pauta.cantidadImagenes} imágenes adjuntas de ${pauta.nombre}`;
-      botonEvidencias.setAttribute("aria-label", botonEvidencias.title);
-      botonEvidencias.setAttribute("aria-haspopup", "dialog");
-      botonEvidencias.addEventListener("click", () => mostrarEvidenciasPauta(pauta));
-
-      botonesAccion.appendChild(botonEvidencias);
+      botones.push(botonIcono("btn-outline-primary", "images",
+        `Ver ${pauta.cantidadImagenes} imágenes adjuntas de ${pauta.nombre}`, true,
+        () => mostrarEvidenciasPauta(pauta)));
     }
-
     if (puedeEditar()) {
-      const botonEditar = document.createElement("button");
-      botonEditar.type = "button";
-      botonEditar.className = "btn btn-sm btn-outline-primary";
-      botonEditar.title = `Editar pauta ${pauta.nombre}`;
-      botonEditar.setAttribute("aria-label", `Editar pauta ${pauta.nombre}`);
-      botonEditar.setAttribute("aria-haspopup", "dialog");
-      botonEditar.innerHTML = '<i class="bi bi-pencil-square" aria-hidden="true"></i>';
-      botonEditar.addEventListener("click", () => abrirEdicionPauta(pauta));
-      botonesAccion.appendChild(botonEditar);
-
-      const botonEliminar = document.createElement("button");
-      botonEliminar.type = "button";
-      botonEliminar.className = "btn btn-sm btn-outline-danger";
-      botonEliminar.title = `Eliminar pauta ${pauta.nombre}`;
-      botonEliminar.setAttribute("aria-label", `Eliminar pauta ${pauta.nombre}`);
-      botonEliminar.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
-      botonEliminar.addEventListener("click", () => solicitarEliminacionPauta(pauta, botonEliminar));
-      botonesAccion.appendChild(botonEliminar);
+      botones.push(
+        botonIcono("btn-outline-primary", "pencil-square", `Editar pauta ${pauta.nombre}`, true,
+          () => abrirEdicionPauta(pauta)),
+        botonIcono("btn-outline-danger", "trash", `Eliminar pauta ${pauta.nombre}`, false,
+          function () { solicitarEliminacionPauta(pauta, this); })
+      );
     }
 
-    botonesAccion.prepend(botonHistorial);
-    acciones.appendChild(botonesAccion);
-    fila.append(nombre, categoria, fecha, responsable, acciones);
+    const nombre = el("td");
+    nombre.appendChild(botonDetalle);
+    const acciones = el("td");
+    acciones.appendChild(el("div", "d-flex flex-wrap gap-2"));
+    acciones.firstChild.append(...botones);
 
+    const fila = el("tr");
+    fila.append(
+      nombre,
+      el("td", "", pauta.categoria),
+      el("td", "", pauta.fecha || "-"),
+      el("td", "", pauta.responsable || "-"),
+      acciones
+    );
     tabla.appendChild(fila);
   });
 
   actualizarSelectPautas();
 }
 
-async function mostrarEvidenciasPauta(pauta) {
-  const pautaId = pauta.bdId || pauta.id;
-  const modal = document.getElementById("evidencias-pauta-modal");
-  const titulo = document.getElementById("evidencias-pauta-titulo");
-  const contenedor = document.getElementById("evidencias-pauta-contenedor");
-  titulo.textContent = `Imágenes adjuntas: ${pauta.nombre}`;
-  contenedor.replaceChildren();
+function crearFigura(clase, src, texto, claseImagen, claseNombre, alt = texto) {
+  const figura = el("figure", clase);
+  const imagen = el("img", claseImagen, "", { src, alt });
+  figura.append(imagen, el("figcaption", claseNombre, texto));
+  return figura;
+}
 
-  const mensajeCarga = document.createElement("p");
-  mensajeCarga.className = "text-body-secondary mb-0";
-  mensajeCarga.textContent = "Cargando imágenes...";
-  contenedor.appendChild(mensajeCarga);
-  bootstrap.Modal.getOrCreateInstance(modal).show();
+async function mostrarEvidenciasPauta(pauta) {
+  const pautaId = idPauta(pauta);
+  const contenedor = $("evidencias-pauta-contenedor");
+  $("evidencias-pauta-titulo").textContent = `Imágenes adjuntas: ${pauta.nombre}`;
+  contenedor.replaceChildren(mensaje("Cargando imágenes..."));
+  mostrarModal("evidencias-pauta-modal");
 
   try {
-    const respuesta = await fetch(`/api/pautas/${encodeURIComponent(pautaId)}/imagenes`);
+    const respuesta = await fetch(urlImagenes(pautaId));
     if (!respuesta.ok) throw new Error("No se pudieron cargar las imágenes adjuntas.");
 
     const imagenes = await respuesta.json();
-    contenedor.replaceChildren();
     if (imagenes.length === 0) {
-      const mensaje = document.createElement("p");
-      mensaje.className = "text-body-secondary mb-0";
-      mensaje.textContent = "Esta pauta no tiene imágenes adjuntas.";
-      contenedor.appendChild(mensaje);
+      contenedor.replaceChildren(mensaje("Esta pauta no tiene imágenes adjuntas."));
       return;
     }
-
-    imagenes.forEach((imagen) => {
-      const tarjeta = document.createElement("figure");
-      tarjeta.className = "col-12 col-sm-6 mb-0";
-
-      const vistaPrevia = document.createElement("img");
-      vistaPrevia.src = `/api/pautas/${encodeURIComponent(pautaId)}/imagenes/${encodeURIComponent(imagen.id)}`;
-      vistaPrevia.alt = imagen.nombre;
-      vistaPrevia.className = "evidencia-galeria-imagen img-thumbnail";
-
-      const nombre = document.createElement("figcaption");
-      nombre.className = "small text-body-secondary text-break mt-2";
-      nombre.textContent = imagen.nombre;
-
-      tarjeta.append(vistaPrevia, nombre);
-      contenedor.appendChild(tarjeta);
-    });
+    contenedor.replaceChildren(...imagenes.map((imagen) => crearFigura(
+      "col-12 col-sm-6 mb-0",
+      urlImagenes(pautaId, imagen.id),
+      imagen.nombre,
+      "evidencia-galeria-imagen img-thumbnail",
+      "small text-body-secondary text-break mt-2"
+    )));
   } catch (error) {
-    contenedor.replaceChildren();
-    const mensaje = document.createElement("p");
-    mensaje.className = "alert alert-danger mb-0";
-    mensaje.textContent = error.message;
-    contenedor.appendChild(mensaje);
+    contenedor.replaceChildren(mensaje(error.message, "alert alert-danger mb-0"));
   }
+}
+
+function crearTarjetaProceso(proceso) {
+  const tarjeta = el("article", "border rounded p-3");
+  tarjeta.appendChild(el("h4", "h6 mb-2", proceso.nombre));
+  if (proceso.pasos.length > 0) {
+    const pasos = el("ol", "mb-2");
+    pasos.append(...proceso.pasos.map((paso) => el("li", "", paso)));
+    tarjeta.appendChild(pasos);
+  }
+  if (proceso.nota) tarjeta.appendChild(mensaje(`Nota: ${proceso.nota}`));
+  return tarjeta;
 }
 
 async function mostrarDetallePauta(pauta) {
   pautaEnDetalle = pauta;
-  document.getElementById("detalle-pauta-editar")?.classList.toggle("d-none", !puedeEditar());
-  document.getElementById("detalle-pauta-titulo").textContent = pauta.nombre;
-  document.getElementById("detalle-pauta-categoria").textContent = pauta.categoria || "-";
-  document.getElementById("detalle-pauta-fecha").textContent = pauta.fecha || "-";
-  document.getElementById("detalle-pauta-responsable").textContent = pauta.responsable || "-";
-  document.getElementById("detalle-pauta-descripcion").innerHTML =
+  $("detalle-pauta-editar")?.classList.toggle("d-none", !puedeEditar());
+  $("detalle-pauta-titulo").textContent = pauta.nombre;
+  $("detalle-pauta-categoria").textContent = pauta.categoria || "-";
+  $("detalle-pauta-fecha").textContent = pauta.fecha || "-";
+  $("detalle-pauta-responsable").textContent = pauta.responsable || "-";
+  $("detalle-pauta-descripcion").innerHTML =
     pauta.descripcion?.trim() ? htmlSeguro(pauta.descripcion) : "No se ha registrado una descripción.";
-  document.getElementById("detalle-pauta-conclusion").textContent =
-    pauta.conclusion?.trim() || "No se ha registrado una conclusión.";
+  $("detalle-pauta-conclusion").textContent = pauta.conclusion?.trim() || "No se ha registrado una conclusión.";
 
-  const contenedorProcesos = document.getElementById("detalle-pauta-procesos");
-  contenedorProcesos.replaceChildren();
-  const contenedorImagenes = document.getElementById("detalle-pauta-imagenes");
+  $("detalle-pauta-procesos").replaceChildren(
+    ...(pauta.procesos.length === 0
+      ? [mensaje("No se han registrado procesos.")]
+      : pauta.procesos.map(crearTarjetaProceso))
+  );
+  const contenedorImagenes = $("detalle-pauta-imagenes");
   contenedorImagenes.replaceChildren();
 
-  if (pauta.procesos.length === 0) {
-    const mensaje = document.createElement("p");
-    mensaje.className = "text-body-secondary mb-0";
-    mensaje.textContent = "No se han registrado procesos.";
-    contenedorProcesos.appendChild(mensaje);
-  } else {
-    pauta.procesos.forEach((proceso) => {
-      const tarjeta = document.createElement("article");
-      tarjeta.className = "border rounded p-3";
-
-      const titulo = document.createElement("h4");
-      titulo.className = "h6 mb-2";
-      titulo.textContent = proceso.nombre;
-      tarjeta.appendChild(titulo);
-
-      if (proceso.pasos.length > 0) {
-        const pasos = document.createElement("ol");
-        pasos.className = "mb-2";
-        proceso.pasos.forEach((paso) => {
-          const elemento = document.createElement("li");
-          elemento.textContent = paso;
-          pasos.appendChild(elemento);
-        });
-        tarjeta.appendChild(pasos);
-      }
-
-      if (proceso.nota) {
-        const nota = document.createElement("p");
-        nota.className = "text-body-secondary mb-0";
-        nota.textContent = `Nota: ${proceso.nota}`;
-        tarjeta.appendChild(nota);
-      }
-
-      contenedorProcesos.appendChild(tarjeta);
-    });
-  }
-
-  const pautaId = pauta.bdId || pauta.id;
+  const pautaId = idPauta(pauta);
   if (pautaId) {
-    let respuesta;
+    let imagenes;
     try {
-      respuesta = await fetch(`/api/pautas/${encodeURIComponent(pautaId)}/imagenes`);
+      const respuesta = await fetch(urlImagenes(pautaId));
+      if (!respuesta.ok) throw new Error();
+      imagenes = await respuesta.json();
     } catch (error) {
       await mostrarAviso("No se pudieron cargar las evidencias de la pauta.", "danger");
       return;
     }
-    if (!respuesta.ok) {
-      await mostrarAviso("No se pudieron cargar las evidencias de la pauta.", "danger");
-      return;
-    }
 
-    const imagenes = await respuesta.json();
     if (imagenes.length === 0) {
-      const mensaje = document.createElement("p");
-      mensaje.className = "text-body-secondary mb-0";
-      mensaje.textContent = "No se han adjuntado evidencias.";
-      contenedorImagenes.appendChild(mensaje);
+      contenedorImagenes.appendChild(mensaje("No se han adjuntado evidencias."));
     } else {
       imagenes.forEach((imagen) => {
-        const enlace = document.createElement("a");
-        enlace.href = `/api/pautas/${encodeURIComponent(pautaId)}/imagenes/${encodeURIComponent(imagen.id)}`;
-        enlace.target = "_blank";
-        enlace.rel = "noopener noreferrer";
-        enlace.setAttribute("aria-label", `Abrir evidencia ${imagen.nombre}`);
-
-        const vistaPrevia = document.createElement("img");
-        vistaPrevia.src = enlace.href;
-        vistaPrevia.alt = imagen.nombre;
-        vistaPrevia.className = "img-thumbnail";
-        vistaPrevia.style.width = "10rem";
-        vistaPrevia.style.height = "10rem";
-        vistaPrevia.style.objectFit = "cover";
-
+        const enlace = el("a", "", "", {
+          href: urlImagenes(pautaId, imagen.id),
+          target: "_blank",
+          rel: "noopener noreferrer",
+          "aria-label": `Abrir evidencia ${imagen.nombre}`
+        });
+        const vistaPrevia = el("img", "img-thumbnail", "", { src: enlace.href, alt: imagen.nombre });
+        Object.assign(vistaPrevia.style, { width: "10rem", height: "10rem", objectFit: "cover" });
         enlace.appendChild(vistaPrevia);
         contenedorImagenes.appendChild(enlace);
       });
     }
   }
 
-  bootstrap.Modal.getOrCreateInstance(
-    document.getElementById("detalle-pauta-modal")
-  ).show();
+  mostrarModal("detalle-pauta-modal");
 }
 
 function solicitarEliminacionPauta(pauta, boton) {
   pautaPendienteEliminar = pauta;
   botonPendienteEliminar = boton;
-  document.getElementById("nombre-pauta-eliminar").textContent = pauta.nombre;
-  bootstrap.Modal.getOrCreateInstance(
-    document.getElementById("confirmar-eliminar-pauta-modal")
-  ).show();
+  $("nombre-pauta-eliminar").textContent = pauta.nombre;
+  mostrarModal("confirmar-eliminar-pauta-modal");
 }
 
 async function eliminarPauta(pauta, boton) {
   boton.disabled = true;
   try {
-    const id = pauta.bdId || pauta.id;
-    const respuesta = await fetch(`/api/pautas/${encodeURIComponent(id)}`, {
-      method: "DELETE"
-    });
-    const resultado = await respuesta.json().catch(() => ({}));
-
-    if (!respuesta.ok) {
-      throw new Error(resultado.mensaje || "No se pudo eliminar la pauta.");
-    }
-
-    await cargarDatosBD();
-    mostrarPautas();
-    actualizarDashboard();
-    mostrarHistorial();
+    await enviar(`/api/pautas/${encodeURIComponent(idPauta(pauta))}`, "DELETE", null, "No se pudo eliminar la pauta.");
+    await recargarPautas();
   } catch (error) {
     await mostrarAviso(error.message, "danger");
     boton.disabled = false;
   }
 }
 
-const modalEliminarPauta = document.getElementById("confirmar-eliminar-pauta-modal");
-const botonConfirmarEliminarPauta = document.getElementById("confirmar-eliminar-pauta");
+$("confirmar-eliminar-pauta-modal")?.addEventListener("hidden.bs.modal", () => {
+  pautaPendienteEliminar = null;
+  botonPendienteEliminar = null;
+});
 
-if (modalEliminarPauta) {
-  modalEliminarPauta.addEventListener("hidden.bs.modal", () => {
-    pautaPendienteEliminar = null;
-    botonPendienteEliminar = null;
-  });
-}
+$("confirmar-eliminar-pauta")?.addEventListener("click", async () => {
+  const pauta = pautaPendienteEliminar;
+  const boton = botonPendienteEliminar;
+  if (!pauta || !boton) return;
 
-if (botonConfirmarEliminarPauta) {
-  botonConfirmarEliminarPauta.addEventListener("click", async () => {
-    const pauta = pautaPendienteEliminar;
-    const boton = botonPendienteEliminar;
-    if (!pauta || !boton) return;
+  pautaPendienteEliminar = null;
+  botonPendienteEliminar = null;
+  ocultarModal("confirmar-eliminar-pauta-modal");
+  await eliminarPauta(pauta, boton);
+});
 
-    pautaPendienteEliminar = null;
-    botonPendienteEliminar = null;
-    bootstrap.Modal.getOrCreateInstance(modalEliminarPauta).hide();
-    await eliminarPauta(pauta, boton);
-  });
+const categoriasUnicas = () => [...new Set(pautas.map((pauta) => pauta.categoria))];
+
+function llenarSelectCategorias(select, primeraEtiqueta, categorias, conOpcionNueva = false) {
+  if (!select) return;
+  const seleccionada = select.value;
+  select.replaceChildren(new Option(primeraEtiqueta, ""));
+  categorias.forEach((categoria) => select.add(new Option(categoria, categoria)));
+  if (conOpcionNueva) select.add(new Option("+ Crear nueva categoría", OPCION_NUEVA_CATEGORIA));
+  select.value = categorias.includes(seleccionada) || (conOpcionNueva && seleccionada === OPCION_NUEVA_CATEGORIA)
+    ? seleccionada
+    : "";
 }
 
 function actualizarSelectPautas() {
-  const categorias = [...new Set(pautas.map((pauta) => pauta.categoria))];
-  const filtroCategoria = document.getElementById("filtro-categoria-pauta");
-  if (filtroCategoria) {
-    const categoriaSeleccionada = filtroCategoria.value;
-    filtroCategoria.replaceChildren(new Option("Todas las categorías", ""));
-    categorias.forEach((categoria) => filtroCategoria.add(new Option(categoria, categoria)));
-    filtroCategoria.value = categorias.includes(categoriaSeleccionada) ? categoriaSeleccionada : "";
-  }
+  const categorias = categoriasUnicas();
+  llenarSelectCategorias($("filtro-categoria-pauta"), "Todas las categorías", categorias);
+  llenarSelectCategorias($("pauta-categoria"), "Seleccionar categoría", categorias);
+  llenarSelectCategorias($("nueva-pauta-categoria"), "Seleccionar categoría", categorias, true);
 
-  const categoriaSelect = document.getElementById("pauta-categoria");
-  const pautaSelect = document.getElementById("pauta-select");
-  if (categoriaSelect) {
-    const categoriaSeleccionada = categoriaSelect.value;
-    categoriaSelect.replaceChildren(new Option("Seleccionar categoría", ""));
-    categorias.forEach((categoria) => categoriaSelect.add(new Option(categoria, categoria)));
-    categoriaSelect.value = categorias.includes(categoriaSeleccionada) ? categoriaSeleccionada : "";
-  }
-
-  const nuevaCategoriaSelect = document.getElementById("nueva-pauta-categoria");
-  if (nuevaCategoriaSelect) {
-    const categoriaSeleccionada = nuevaCategoriaSelect.value;
-    nuevaCategoriaSelect.replaceChildren(new Option("Seleccionar categoría", ""));
-    categorias.forEach((categoria) => nuevaCategoriaSelect.add(new Option(categoria, categoria)));
-    nuevaCategoriaSelect.add(new Option("+ Crear nueva categoría", OPCION_NUEVA_CATEGORIA));
-    nuevaCategoriaSelect.value = categoriaSeleccionada === OPCION_NUEVA_CATEGORIA ||
-      categorias.includes(categoriaSeleccionada) ? categoriaSeleccionada : "";
-  }
-
+  const pautaSelect = $("pauta-select");
   if (pautaSelect) {
     pautaSelect.replaceChildren(new Option("Seleccionar pauta", ""));
     pautaSelect.disabled = true;
     cargarEvidenciasPautaSeleccionada(0);
   }
 
-  actualizarSelectHistorial();
+  const historial = $("historial-pauta");
+  if (historial) {
+    historial.replaceChildren(
+      new Option("Todas las pautas", "todos"),
+      ...pautas.map((pauta) => new Option(pauta.nombre, idPauta(pauta)))
+    );
+  }
 }
 
 function actualizarSelectHijos(categoria) {
-  const pautaSelect = document.getElementById("pauta-select");
+  const pautaSelect = $("pauta-select");
   if (!pautaSelect) return;
 
   pautaSelect.replaceChildren(new Option("Seleccionar pauta", ""));
-  const cambio = document.getElementById("cambio");
-  if (cambio) cambio.value = "";
+  if ($("cambio")) $("cambio").value = "";
   cargarEvidenciasPautaSeleccionada(0);
   const pautasCategoria = pautas.filter((pauta) => pauta.categoria === categoria);
   pautaSelect.disabled = pautasCategoria.length === 0;
-
-  pautasCategoria.forEach((pauta) => {
-    pautaSelect.add(new Option(pauta.nombre, pauta.bdId || pauta.id));
-  });
+  pautasCategoria.forEach((pauta) => pautaSelect.add(new Option(pauta.nombre, idPauta(pauta))));
 }
 
 function obtenerDetallePauta(pauta) {
@@ -886,47 +744,95 @@ function obtenerDetallePauta(pauta) {
 }
 
 function cargarDetallePautaSeleccionada() {
-  const pautaId = Number(document.getElementById("pauta-select")?.value);
-  const cambio = document.getElementById("cambio");
-
-  const pauta = pautas.find((item) => Number(item.bdId || item.id) === pautaId);
+  const pautaId = Number($("pauta-select")?.value);
+  const cambio = $("cambio");
+  const pauta = pautas.find((item) => Number(idPauta(item)) === pautaId);
   if (pautaId && cambio && pauta) cambio.value = obtenerDetallePauta(pauta);
   cargarEvidenciasPautaSeleccionada(pautaId);
+}
+
+// Utilidades compartidas para adjuntar imágenes (nueva pauta y evidencias de actualización).
+function validarImagenes(archivos, cantidadActual, bytesActuales, textos) {
+  if (cantidadActual + archivos.length > MAX_EVIDENCIAS_POR_PAUTA) return textos.cantidad;
+  if (archivos.some((archivo) => !TIPOS_IMAGEN.includes(archivo.type))) return "Usa imágenes JPG, PNG, GIF o WebP.";
+  if (archivos.some((archivo) => archivo.size > MAX_BYTES_POR_EVIDENCIA)) return "Cada imagen puede pesar hasta 10 MB.";
+  const bytesNuevos = archivos.reduce((total, archivo) => total + archivo.size, 0);
+  if (bytesActuales + bytesNuevos > MAX_BYTES_EVIDENCIAS_PAUTA) return textos.total;
+  return "";
+}
+
+function leerImagenes(archivos) {
+  return Promise.all(archivos.map((archivo) => new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => typeof lector.result === "string"
+      ? resolve({ nombre: archivo.name, tipo: archivo.type, dataUrl: lector.result })
+      : reject(new Error(`No se pudo leer la imagen ${archivo.name}.`));
+    lector.onerror = () => reject(new Error(`No se pudo leer la imagen ${archivo.name}.`));
+    lector.readAsDataURL(archivo);
+  })));
+}
+
+function mostrarVistasPrevias(contenedor, archivos) {
+  const urls = archivos.map((archivo) => {
+    const url = URL.createObjectURL(archivo);
+    contenedor.appendChild(crearFigura(
+      "evidencia-seleccionada mb-0",
+      url,
+      archivo.name,
+      "evidencia-seleccionada-imagen img-thumbnail",
+      "small text-body-secondary text-break mt-1",
+      `Vista previa de ${archivo.name}`
+    ));
+    return url;
+  });
+  contenedor.classList.add("d-flex", "flex-wrap", "gap-3");
+  return urls;
+}
+
+function configurarDropzone(dropzone, input, alSeleccionar) {
+  if (!dropzone || !input) return;
+  dropzone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    dropzone.classList.add("is-dragover");
+  });
+  dropzone.addEventListener("dragleave", (event) => {
+    if (!(event.relatedTarget instanceof Node) || !dropzone.contains(event.relatedTarget)) {
+      dropzone.classList.remove("is-dragover");
+    }
+  });
+  dropzone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    dropzone.classList.remove("is-dragover");
+    const transferencia = new DataTransfer();
+    Array.from(event.dataTransfer.files).forEach((archivo) => transferencia.items.add(archivo));
+    input.files = transferencia.files;
+    alSeleccionar(Array.from(input.files));
+  });
 }
 
 let solicitudEvidenciasActualizacion = 0;
 let pautaEvidenciasActualizacion = 0;
 let evidenciasPautaActualizacion = [];
 let urlsVistaPreviaEvidenciasActualizacion = [];
-const MAX_EVIDENCIAS_POR_PAUTA = 5;
-const MAX_BYTES_POR_EVIDENCIA = 10 * 1024 * 1024;
-const MAX_BYTES_EVIDENCIAS_PAUTA = 20 * 1024 * 1024;
 
-function mostrarMensajeEvidenciasActualizacion(mensaje, esError = false) {
-  const contenedor = document.getElementById("evidencias-actualizacion-contenedor");
-  if (!contenedor) return;
-  const texto = document.createElement("p");
-  texto.className = esError ? "text-danger mb-0" : "text-body-secondary mb-0";
-  texto.textContent = mensaje;
-  contenedor.replaceChildren(texto);
+const bytesEvidenciasActuales = () => evidenciasPautaActualizacion.reduce((total, imagen) => total + imagen.tamañoBytes, 0);
+
+function mostrarMensajeEvidenciasActualizacion(texto, esError = false) {
+  $("evidencias-actualizacion-contenedor")?.replaceChildren(
+    mensaje(texto, esError ? "text-danger mb-0" : "text-body-secondary mb-0")
+  );
 }
 
 function actualizarLimiteEvidenciasActualizacion() {
-  const ayuda = document.getElementById("ayuda-evidencias-actualizacion");
-  const input = document.getElementById("input-evidencias-actualizacion");
-  const boton = document.getElementById("boton-agregar-evidencias-actualizacion");
-  if (!ayuda || !input || !boton) return;
+  const ayuda = $("ayuda-evidencias-actualizacion");
+  const input = $("input-evidencias-actualizacion");
+  if (!ayuda || !input || !$("boton-agregar-evidencias-actualizacion")) return;
 
-  const bytesActuales = evidenciasPautaActualizacion.reduce(
-    (total, imagen) => total + imagen.tamañoBytes,
-    0
-  );
-  const espacioRestante = MAX_BYTES_EVIDENCIAS_PAUTA - bytesActuales;
+  const bytesActuales = bytesEvidenciasActuales();
   const cuposRestantes = MAX_EVIDENCIAS_POR_PAUTA - evidenciasPautaActualizacion.length;
   ayuda.textContent = `${evidenciasPautaActualizacion.length}/${MAX_EVIDENCIAS_POR_PAUTA} evidencias; ` +
-    `${(bytesActuales / 1024 / 1024).toFixed(1)} de 20 MB usados. ` +
-    "Máximo 10 MB por imagen.";
-  input.disabled = cuposRestantes <= 0 || espacioRestante <= 0;
+    `${(bytesActuales / 1024 / 1024).toFixed(1)} de 20 MB usados. Máximo 10 MB por imagen.`;
+  input.disabled = cuposRestantes <= 0 || MAX_BYTES_EVIDENCIAS_PAUTA - bytesActuales <= 0;
   if (input.disabled) {
     ayuda.textContent += cuposRestantes <= 0
       ? " Se alcanzó el máximo de evidencias."
@@ -937,86 +843,60 @@ function actualizarLimiteEvidenciasActualizacion() {
 function limpiarPrevisualizacionEvidenciasActualizacion() {
   urlsVistaPreviaEvidenciasActualizacion.forEach((url) => URL.revokeObjectURL(url));
   urlsVistaPreviaEvidenciasActualizacion = [];
-  const previsualizacion = document.getElementById("evidencias-actualizacion-seleccionadas");
-  const boton = document.getElementById("boton-agregar-evidencias-actualizacion");
+  const previsualizacion = $("evidencias-actualizacion-seleccionadas");
   if (previsualizacion) {
     previsualizacion.replaceChildren();
     previsualizacion.classList.remove("d-flex", "flex-wrap", "gap-3", "text-danger");
   }
-  if (boton) boton.disabled = true;
+  if ($("boton-agregar-evidencias-actualizacion")) $("boton-agregar-evidencias-actualizacion").disabled = true;
 }
 
 function mostrarSeleccionEvidenciasActualizacion(archivos) {
-  const input = document.getElementById("input-evidencias-actualizacion");
-  const previsualizacion = document.getElementById("evidencias-actualizacion-seleccionadas");
-  const boton = document.getElementById("boton-agregar-evidencias-actualizacion");
+  const input = $("input-evidencias-actualizacion");
+  const previsualizacion = $("evidencias-actualizacion-seleccionadas");
+  const boton = $("boton-agregar-evidencias-actualizacion");
   if (!input || !previsualizacion || !boton) return;
 
   limpiarPrevisualizacionEvidenciasActualizacion();
-  const rechazar = (mensaje) => {
-    input.value = "";
-    previsualizacion.textContent = mensaje;
-    previsualizacion.classList.add("text-danger");
-  };
   if (!archivos.length) return;
 
-  const cantidadActual = evidenciasPautaActualizacion.length;
-  const bytesActuales = evidenciasPautaActualizacion.reduce(
-    (total, imagen) => total + imagen.tamañoBytes,
-    0
-  );
-  if (cantidadActual + archivos.length > MAX_EVIDENCIAS_POR_PAUTA) {
-    rechazar(`Solo puedes adjuntar ${MAX_EVIDENCIAS_POR_PAUTA} evidencias por pauta.`);
-    return;
-  }
-  if (archivos.some((archivo) => !["image/jpeg", "image/png", "image/gif", "image/webp"].includes(archivo.type))) {
-    rechazar("Usa imágenes JPG, PNG, GIF o WebP.");
-    return;
-  }
-  if (archivos.some((archivo) => archivo.size > MAX_BYTES_POR_EVIDENCIA)) {
-    rechazar("Cada imagen puede pesar hasta 10 MB.");
-    return;
-  }
-  const bytesNuevos = archivos.reduce((total, archivo) => total + archivo.size, 0);
-  if (bytesActuales + bytesNuevos > MAX_BYTES_EVIDENCIAS_PAUTA) {
-    rechazar("El tamaño total de las evidencias no puede superar 20 MB.");
-    return;
-  }
-
-  archivos.forEach((archivo) => {
-    const url = URL.createObjectURL(archivo);
-    urlsVistaPreviaEvidenciasActualizacion.push(url);
-
-    const tarjeta = document.createElement("figure");
-    tarjeta.className = "evidencia-seleccionada mb-0";
-
-    const vistaPrevia = document.createElement("img");
-    vistaPrevia.src = url;
-    vistaPrevia.alt = `Vista previa de ${archivo.name}`;
-    vistaPrevia.className = "evidencia-seleccionada-imagen img-thumbnail";
-
-    const nombre = document.createElement("figcaption");
-    nombre.className = "small text-body-secondary text-break mt-1";
-    nombre.textContent = archivo.name;
-
-    tarjeta.append(vistaPrevia, nombre);
-    previsualizacion.appendChild(tarjeta);
+  const error = validarImagenes(archivos, evidenciasPautaActualizacion.length, bytesEvidenciasActuales(), {
+    cantidad: `Solo puedes adjuntar ${MAX_EVIDENCIAS_POR_PAUTA} evidencias por pauta.`,
+    total: "El tamaño total de las evidencias no puede superar 20 MB."
   });
-  previsualizacion.classList.add("d-flex", "flex-wrap", "gap-3");
+  if (error) {
+    input.value = "";
+    previsualizacion.textContent = error;
+    previsualizacion.classList.add("text-danger");
+    return;
+  }
+
+  urlsVistaPreviaEvidenciasActualizacion = mostrarVistasPrevias(previsualizacion, archivos);
   boton.disabled = false;
 }
 
+async function eliminarEvidencia(pautaId, imagen, boton) {
+  if (!await confirmarAccion(`¿Eliminar permanentemente la evidencia "${imagen.nombre}" de esta pauta?`)) return;
+
+  boton.disabled = true;
+  try {
+    await enviar(urlImagenes(pautaId, imagen.id), "DELETE", null, "No se pudo eliminar la evidencia.");
+    if (Number($("pauta-select")?.value) === pautaId) await cargarEvidenciasPautaSeleccionada(pautaId);
+  } catch (error) {
+    await mostrarAviso(error.message || "No se pudo eliminar la evidencia.", "danger");
+    boton.disabled = false;
+  }
+}
+
 async function cargarEvidenciasPautaSeleccionada(pautaId) {
-  const contenedor = document.getElementById("evidencias-actualizacion-contenedor");
+  const contenedor = $("evidencias-actualizacion-contenedor");
   if (!contenedor) return;
 
   const solicitud = ++solicitudEvidenciasActualizacion;
   if (pautaEvidenciasActualizacion !== pautaId) {
     limpiarPrevisualizacionEvidenciasActualizacion();
-    const input = document.getElementById("input-evidencias-actualizacion");
-    const carga = document.getElementById("agregar-evidencias-actualizacion");
-    if (input) input.value = "";
-    if (carga) carga.classList.add("d-none");
+    if ($("input-evidencias-actualizacion")) $("input-evidencias-actualizacion").value = "";
+    $("agregar-evidencias-actualizacion")?.classList.add("d-none");
     evidenciasPautaActualizacion = [];
     pautaEvidenciasActualizacion = pautaId;
   }
@@ -1027,231 +907,112 @@ async function cargarEvidenciasPautaSeleccionada(pautaId) {
 
   mostrarMensajeEvidenciasActualizacion("Cargando evidencias...");
   try {
-    const respuesta = await fetch(`/api/pautas/${encodeURIComponent(pautaId)}/imagenes`);
+    const respuesta = await fetch(urlImagenes(pautaId));
     if (!respuesta.ok) throw new Error("No se pudieron cargar las evidencias de la pauta.");
     const imagenes = await respuesta.json();
-    if (
-      solicitud !== solicitudEvidenciasActualizacion ||
-      Number(document.getElementById("pauta-select")?.value) !== pautaId
-    ) return;
+    if (solicitud !== solicitudEvidenciasActualizacion || Number($("pauta-select")?.value) !== pautaId) return;
 
     evidenciasPautaActualizacion = imagenes;
-    const carga = document.getElementById("agregar-evidencias-actualizacion");
-    if (carga) carga.classList.remove("d-none");
+    $("agregar-evidencias-actualizacion")?.classList.remove("d-none");
     actualizarLimiteEvidenciasActualizacion();
     if (imagenes.length === 0) {
       mostrarMensajeEvidenciasActualizacion("Esta pauta no tiene evidencias anexadas.");
       return;
     }
 
-    contenedor.replaceChildren();
-    imagenes.forEach((imagen) => {
-      const tarjeta = document.createElement("figure");
-      tarjeta.className = "col-12 col-sm-6 col-lg-4 mb-0";
-
-      const vistaPrevia = document.createElement("img");
-      vistaPrevia.src = `/api/pautas/${encodeURIComponent(pautaId)}/imagenes/${encodeURIComponent(imagen.id)}`;
-      vistaPrevia.alt = imagen.nombre;
-      vistaPrevia.className = "evidencia-actualizacion-imagen img-thumbnail";
-
-      const nombre = document.createElement("figcaption");
-      nombre.className = "small text-body-secondary text-break mt-2";
-      nombre.textContent = imagen.nombre;
-
-      const botonEliminar = document.createElement("button");
-      botonEliminar.type = "button";
-      botonEliminar.className = "btn btn-outline-danger btn-sm mt-2";
-      botonEliminar.textContent = "Eliminar evidencia";
-      botonEliminar.setAttribute("aria-label", `Eliminar evidencia ${imagen.nombre}`);
-      botonEliminar.addEventListener("click", async () => {
-        if (!await confirmarAccion(`¿Eliminar permanentemente la evidencia "${imagen.nombre}" de esta pauta?`)) return;
-
-        botonEliminar.disabled = true;
-        try {
-          const resultado = await fetch(
-            `/api/pautas/${encodeURIComponent(pautaId)}/imagenes/${encodeURIComponent(imagen.id)}`,
-            { method: "DELETE" }
-          );
-          if (!resultado.ok) {
-            const error = await resultado.json().catch(() => ({}));
-            throw new Error(error.mensaje || "No se pudo eliminar la evidencia.");
-          }
-          if (Number(document.getElementById("pauta-select")?.value) === pautaId) {
-            await cargarEvidenciasPautaSeleccionada(pautaId);
-          }
-        } catch (error) {
-          await mostrarAviso(error.message || "No se pudo eliminar la evidencia.", "danger");
-          botonEliminar.disabled = false;
-        }
-      });
-
-      tarjeta.append(vistaPrevia, nombre);
-      if (puedeEditar()) tarjeta.appendChild(botonEliminar);
-      contenedor.appendChild(tarjeta);
-    });
+    contenedor.replaceChildren(...imagenes.map((imagen) => {
+      const tarjeta = crearFigura(
+        "col-12 col-sm-6 col-lg-4 mb-0",
+        urlImagenes(pautaId, imagen.id),
+        imagen.nombre,
+        "evidencia-actualizacion-imagen img-thumbnail",
+        "small text-body-secondary text-break mt-2"
+      );
+      if (puedeEditar()) {
+        const botonEliminar = el("button", "btn btn-outline-danger btn-sm mt-2", "Eliminar evidencia", {
+          type: "button",
+          "aria-label": `Eliminar evidencia ${imagen.nombre}`
+        });
+        botonEliminar.addEventListener("click", () => eliminarEvidencia(pautaId, imagen, botonEliminar));
+        tarjeta.appendChild(botonEliminar);
+      }
+      return tarjeta;
+    }));
   } catch (error) {
     if (solicitud !== solicitudEvidenciasActualizacion) return;
-    mostrarMensajeEvidenciasActualizacion(
-      error.message || "No se pudieron cargar las evidencias de la pauta.",
-      true
-    );
+    mostrarMensajeEvidenciasActualizacion(error.message || "No se pudieron cargar las evidencias de la pauta.", true);
   }
 }
 
-function actualizarSelectHistorial() {
-  const select = document.getElementById("historial-pauta");
-  if (!select) return;
-
-  select.innerHTML = '<option value="todos">Todas las pautas</option>';
-  pautas.forEach((pauta) => {
-    select.innerHTML += `<option value="${pauta.bdId || pauta.id}">${pauta.nombre}</option>`;
-  });
-}
-
-async function registrarActualizacion(pauta, fecha, responsable, cambio, observaciones) {
-  const respuesta = await fetch("/api/actualizaciones", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      pautaId: pauta.bdId || null,
-      pauta: { nombre: pauta.nombre, categoria: pauta.categoria },
-      fecha,
-      responsable,
-      cambio,
-      observaciones
-    })
-  });
-
-  if (!respuesta.ok) {
-    const error = await respuesta.json().catch(() => ({}));
-    throw new Error(error.mensaje || "No se pudo guardar la actualización.");
-  }
-}
-
-const formulario = document.getElementById("form-actualizacion");
+const formulario = $("form-actualizacion");
 if (formulario) {
-  const categoriaSelect = document.getElementById("pauta-categoria");
-  const pautaSelect = document.getElementById("pauta-select");
-const inputEvidencias = document.getElementById("input-evidencias-actualizacion");
-const dropzoneEvidencias = document.getElementById("dropzone-evidencias-actualizacion");
-const botonAgregarEvidencias = document.getElementById("boton-agregar-evidencias-actualizacion");
-categoriaSelect?.addEventListener("change", () => {
-  actualizarSelectHijos(categoriaSelect.value);
-});
-pautaSelect?.addEventListener("change", cargarDetallePautaSeleccionada);
-inputEvidencias?.addEventListener("change", () => {
-  mostrarSeleccionEvidenciasActualizacion(Array.from(inputEvidencias.files));
-});
-dropzoneEvidencias?.addEventListener("dragover", (event) => {
-  event.preventDefault();
-  dropzoneEvidencias.classList.add("is-dragover");
-});
-dropzoneEvidencias?.addEventListener("dragleave", (event) => {
-  if (!(event.relatedTarget instanceof Node) || !dropzoneEvidencias.contains(event.relatedTarget)) {
-    dropzoneEvidencias.classList.remove("is-dragover");
-  }
-});
-dropzoneEvidencias?.addEventListener("drop", (event) => {
-  event.preventDefault();
-  dropzoneEvidencias.classList.remove("is-dragover");
-  if (!inputEvidencias) return;
-  const transferencia = new DataTransfer();
-  Array.from(event.dataTransfer.files).forEach((archivo) => transferencia.items.add(archivo));
-  inputEvidencias.files = transferencia.files;
-  mostrarSeleccionEvidenciasActualizacion(Array.from(inputEvidencias.files));
-});
-botonAgregarEvidencias?.addEventListener("click", async () => {
-  const pautaId = Number(pautaSelect?.value);
-  const archivos = Array.from(inputEvidencias?.files || []);
-  if (!pautaId || !archivos.length) return;
+  const categoriaSelect = $("pauta-categoria");
+  const pautaSelect = $("pauta-select");
+  const inputEvidencias = $("input-evidencias-actualizacion");
+  const botonAgregarEvidencias = $("boton-agregar-evidencias-actualizacion");
+  const alSeleccionar = (archivos) => mostrarSeleccionEvidenciasActualizacion(archivos);
 
-  botonAgregarEvidencias.disabled = true;
-  try {
-    const imagenes = await Promise.all(archivos.map((archivo) => new Promise((resolve, reject) => {
-      const lector = new FileReader();
-      lector.onload = () => {
-        if (typeof lector.result !== "string") {
-          reject(new Error(`No se pudo leer la imagen ${archivo.name}.`));
-          return;
-        }
-        resolve({ nombre: archivo.name, tipo: archivo.type, dataUrl: lector.result });
-      };
-      lector.onerror = () => reject(new Error(`No se pudo leer la imagen ${archivo.name}.`));
-      lector.readAsDataURL(archivo);
-    })));
-    const respuesta = await fetch(`/api/pautas/${encodeURIComponent(pautaId)}/imagenes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imagenes })
-    });
-    if (!respuesta.ok) {
-      const error = await respuesta.json().catch(() => ({}));
-      throw new Error(error.mensaje || "No se pudieron agregar las evidencias.");
-    }
+  categoriaSelect?.addEventListener("change", () => actualizarSelectHijos(categoriaSelect.value));
+  pautaSelect?.addEventListener("change", cargarDetallePautaSeleccionada);
+  inputEvidencias?.addEventListener("change", () => alSeleccionar(Array.from(inputEvidencias.files)));
+  configurarDropzone($("dropzone-evidencias-actualizacion"), inputEvidencias, alSeleccionar);
 
-    if (Number(pautaSelect.value) === pautaId) {
-      limpiarPrevisualizacionEvidenciasActualizacion();
-      inputEvidencias.value = "";
-      await cargarEvidenciasPautaSeleccionada(pautaId);
+  botonAgregarEvidencias?.addEventListener("click", async () => {
+    const pautaId = Number(pautaSelect?.value);
+    const archivos = Array.from(inputEvidencias?.files || []);
+    if (!pautaId || !archivos.length) return;
+
+    botonAgregarEvidencias.disabled = true;
+    try {
+      const imagenes = await leerImagenes(archivos);
+      await enviar(urlImagenes(pautaId), "POST", { imagenes }, "No se pudieron agregar las evidencias.");
+
+      if (Number(pautaSelect.value) === pautaId) {
+        limpiarPrevisualizacionEvidenciasActualizacion();
+        inputEvidencias.value = "";
+        await cargarEvidenciasPautaSeleccionada(pautaId);
+      }
+    } catch (error) {
+      await mostrarAviso(error.message || "No se pudieron agregar las evidencias.", "danger");
+      if (Number(pautaSelect?.value) === pautaId) botonAgregarEvidencias.disabled = false;
     }
-  } catch (error) {
-    await mostrarAviso(error.message || "No se pudieron agregar las evidencias.", "danger");
-    if (Number(pautaSelect?.value) === pautaId) botonAgregarEvidencias.disabled = false;
-  }
-});
-formulario.addEventListener("reset", () => {
-  solicitudEvidenciasActualizacion += 1;
-  limpiarPrevisualizacionEvidenciasActualizacion();
-  evidenciasPautaActualizacion = [];
-  pautaEvidenciasActualizacion = 0;
-  inputEvidencias.value = "";
-  document.getElementById("agregar-evidencias-actualizacion").classList.add("d-none");
-  mostrarMensajeEvidenciasActualizacion("Selecciona una pauta para ver sus evidencias.");
-});
+  });
+
+  formulario.addEventListener("reset", () => {
+    solicitudEvidenciasActualizacion += 1;
+    limpiarPrevisualizacionEvidenciasActualizacion();
+    evidenciasPautaActualizacion = [];
+    pautaEvidenciasActualizacion = 0;
+    inputEvidencias.value = "";
+    $("agregar-evidencias-actualizacion").classList.add("d-none");
+    mostrarMensajeEvidenciasActualizacion("Selecciona una pauta para ver sus evidencias.");
+  });
 
   formulario.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const categoria = categoriaSelect.value;
-    const pautaId = Number(document.getElementById("pauta-select").value);
+    const pautaId = Number(pautaSelect.value);
     if (!categoria || !pautaId) {
       await mostrarAviso("Debes seleccionar una pauta.", "warning");
       return;
     }
 
-    const pauta = pautas.find((item) =>
-      Number(item.bdId || item.id) === pautaId && item.categoria === categoria
-    );
+    const pauta = pautas.find((item) => Number(idPauta(item)) === pautaId && item.categoria === categoria);
     if (!pauta) {
       await mostrarAviso("La pauta seleccionada no está disponible.", "warning");
       return;
     }
 
-    const fechaActual = new Date();
-    const fechaLocal = [
-      fechaActual.getFullYear(),
-      String(fechaActual.getMonth() + 1).padStart(2, "0"),
-      String(fechaActual.getDate()).padStart(2, "0")
-    ].join("-");
-    const responsable = document.getElementById("responsable").value.trim() || obtenerUsuarioActual()?.usuario || "";
-
-    const nuevaActualizacion = {
-      id: Date.now(),
-      pautaId,
-      fecha: fechaLocal,
-      responsable,
-      cambio: document.getElementById("cambio").value.trim(),
-      observaciones: document.getElementById("observaciones").value.trim()
-    };
-
     try {
-      await registrarActualizacion(
-        pauta,
-        fechaLocal,
-        responsable,
-        nuevaActualizacion.cambio,
-        nuevaActualizacion.observaciones
-      );
+      await enviar("/api/actualizaciones", "POST", {
+        pautaId: pauta.bdId || null,
+        pauta: { nombre: pauta.nombre, categoria: pauta.categoria },
+        fecha: fechaLocal(),
+        responsable: $("responsable").value.trim() || obtenerUsuarioActual()?.usuario || "",
+        cambio: $("cambio").value.trim(),
+        observaciones: $("observaciones").value.trim()
+      }, "No se pudo guardar la actualización.");
       await cargarDatosBD();
     } catch (error) {
       await mostrarAviso(error.message, "danger");
@@ -1266,18 +1027,14 @@ formulario.addEventListener("reset", () => {
   });
 }
 
-const formularioNuevaPauta = document.getElementById("form-nueva-pauta");
+const formularioNuevaPauta = $("form-nueva-pauta");
 if (formularioNuevaPauta) {
-  const categoriaSelect = document.getElementById("nueva-pauta-categoria");
-  const nuevaCategoriaContenedor = document.getElementById("nueva-pauta-categoria-nueva-contenedor");
-  const nuevaCategoriaInput = document.getElementById("nueva-pauta-categoria-nueva");
-  const imagenesInput = document.getElementById("nueva-pauta-imagenes");
-  const dropzoneImagenes = document.getElementById("nueva-pauta-dropzone");
-  const imagenesSeleccionadas = document.getElementById("nueva-pauta-imagenes-seleccionadas");
-  const maxImagenes = 5;
-  const maxBytesPorImagen = 10 * 1024 * 1024;
-  const maxBytesTotalesImagenes = 20 * 1024 * 1024;
-  const tiposImagenesValidos = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+  const categoriaSelect = $("nueva-pauta-categoria");
+  const nuevaCategoriaContenedor = $("nueva-pauta-categoria-nueva-contenedor");
+  const nuevaCategoriaInput = $("nueva-pauta-categoria-nueva");
+  const imagenesInput = $("nueva-pauta-imagenes");
+  const dropzoneImagenes = $("nueva-pauta-dropzone");
+  const imagenesSeleccionadas = $("nueva-pauta-imagenes-seleccionadas");
   let urlsVistaPrevia = [];
 
   const limpiarImagenesSeleccionadas = () => {
@@ -1289,80 +1046,21 @@ if (formularioNuevaPauta) {
 
   const mostrarImagenesSeleccionadas = (archivos) => {
     limpiarImagenesSeleccionadas();
-    if (archivos.length > maxImagenes) {
-      imagenesInput.value = "";
-      imagenesSeleccionadas.textContent = "Solo puedes adjuntar hasta 5 imágenes.";
-      imagenesSeleccionadas.classList.add("text-danger");
-      return;
-    }
-    if (archivos.some((archivo) => !tiposImagenesValidos.has(archivo.type))) {
-      imagenesInput.value = "";
-      imagenesSeleccionadas.textContent = "Usa imágenes JPG, PNG, GIF o WebP.";
-      imagenesSeleccionadas.classList.add("text-danger");
-      return;
-    }
-    if (archivos.some((archivo) => archivo.size > maxBytesPorImagen)) {
-      imagenesInput.value = "";
-      imagenesSeleccionadas.textContent = "Cada imagen puede pesar hasta 10 MB.";
-      imagenesSeleccionadas.classList.add("text-danger");
-      return;
-    }
-    if (archivos.reduce((total, archivo) => total + archivo.size, 0) > maxBytesTotalesImagenes) {
-      imagenesInput.value = "";
-      imagenesSeleccionadas.textContent = "El tamaño total de las imágenes no puede superar 20 MB.";
-      imagenesSeleccionadas.classList.add("text-danger");
-      return;
-    }
-
-    imagenesSeleccionadas.classList.remove("text-danger");
-    archivos.forEach((archivo) => {
-      const url = URL.createObjectURL(archivo);
-      urlsVistaPrevia.push(url);
-
-      const tarjeta = document.createElement("figure");
-      tarjeta.className = "evidencia-seleccionada mb-0";
-
-      const vistaPrevia = document.createElement("img");
-      vistaPrevia.src = url;
-      vistaPrevia.alt = `Vista previa de ${archivo.name}`;
-      vistaPrevia.className = "evidencia-seleccionada-imagen img-thumbnail";
-
-      const nombre = document.createElement("figcaption");
-      nombre.className = "small text-body-secondary text-break mt-1";
-      nombre.textContent = archivo.name;
-
-      tarjeta.append(vistaPrevia, nombre);
-      imagenesSeleccionadas.appendChild(tarjeta);
+    const error = validarImagenes(archivos, 0, 0, {
+      cantidad: `Solo puedes adjuntar hasta ${MAX_EVIDENCIAS_POR_PAUTA} imágenes.`,
+      total: "El tamaño total de las imágenes no puede superar 20 MB."
     });
-    imagenesSeleccionadas.classList.add("d-flex", "flex-wrap", "gap-3");
-    if (archivos.length === 0) {
-      imagenesSeleccionadas.classList.remove("d-flex", "flex-wrap", "gap-3");
+    imagenesSeleccionadas.classList.toggle("text-danger", Boolean(error));
+    if (error) {
+      imagenesInput.value = "";
+      imagenesSeleccionadas.textContent = error;
+      return;
     }
+    if (archivos.length) urlsVistaPrevia = mostrarVistasPrevias(imagenesSeleccionadas, archivos);
   };
 
-  imagenesInput.addEventListener("change", () => {
-    mostrarImagenesSeleccionadas(Array.from(imagenesInput.files));
-  });
-
-  dropzoneImagenes.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    dropzoneImagenes.classList.add("is-dragover");
-  });
-
-  dropzoneImagenes.addEventListener("dragleave", (event) => {
-    if (!(event.relatedTarget instanceof Node) || !dropzoneImagenes.contains(event.relatedTarget)) {
-      dropzoneImagenes.classList.remove("is-dragover");
-    }
-  });
-
-  dropzoneImagenes.addEventListener("drop", (event) => {
-    event.preventDefault();
-    dropzoneImagenes.classList.remove("is-dragover");
-    const transferencia = new DataTransfer();
-    Array.from(event.dataTransfer.files).forEach((archivo) => transferencia.items.add(archivo));
-    imagenesInput.files = transferencia.files;
-    mostrarImagenesSeleccionadas(Array.from(imagenesInput.files));
-  });
+  imagenesInput.addEventListener("change", () => mostrarImagenesSeleccionadas(Array.from(imagenesInput.files)));
+  configurarDropzone(dropzoneImagenes, imagenesInput, mostrarImagenesSeleccionadas);
 
   categoriaSelect.addEventListener("change", () => {
     const crearCategoria = categoriaSelect.value === OPCION_NUEVA_CATEGORIA;
@@ -1378,7 +1076,6 @@ if (formularioNuevaPauta) {
     imagenesInput.value = "";
     limpiarImagenesSeleccionadas();
     imagenesSeleccionadas.classList.remove("text-danger");
-    imagenesSeleccionadas.classList.remove("d-flex", "flex-wrap", "gap-3");
     dropzoneImagenes.classList.remove("is-dragover");
   });
 
@@ -1386,57 +1083,25 @@ if (formularioNuevaPauta) {
     event.preventDefault();
 
     const responsable = obtenerUsuarioActual()?.usuario || "";
-    const categoria = categoriaSelect.value === OPCION_NUEVA_CATEGORIA
-      ? nuevaCategoriaInput.value.trim()
-      : categoriaSelect.value;
-    const nombre = document.getElementById("nueva-pauta-nombre").value.trim();
-    const descripcion = document.getElementById("nueva-pauta-descripcion").value.trim();
-    const archivosImagenes = Array.from(imagenesInput.files);
-
     if (!responsable) {
       await mostrarAviso("Debes iniciar sesión para registrar una pauta.", "warning");
       return;
     }
 
-    const fechaActual = new Date();
-    const fecha = [
-      fechaActual.getFullYear(),
-      String(fechaActual.getMonth() + 1).padStart(2, "0"),
-      String(fechaActual.getDate()).padStart(2, "0")
-    ].join("-");
-
-    let imagenes;
     try {
-      imagenes = await Promise.all(archivosImagenes.map((archivo) => new Promise((resolve, reject) => {
-        const lector = new FileReader();
-        lector.onload = () => resolve({
-          nombre: archivo.name,
-          tipo: archivo.type,
-          dataUrl: lector.result
-        });
-        lector.onerror = () => reject(new Error(`No se pudo leer la imagen ${archivo.name}.`));
-        lector.readAsDataURL(archivo);
-      })));
+      const categoria = categoriaSelect.value === OPCION_NUEVA_CATEGORIA
+        ? nuevaCategoriaInput.value.trim()
+        : categoriaSelect.value;
+      await enviar("/api/pautas", "POST", {
+        nombre: $("nueva-pauta-nombre").value.trim(),
+        categoria,
+        descripcion: $("nueva-pauta-descripcion").value.trim(),
+        fecha: fechaLocal(),
+        responsable,
+        imagenes: await leerImagenes(Array.from(imagenesInput.files))
+      }, "No se pudo registrar la nueva pauta.");
     } catch (error) {
       await mostrarAviso(error.message, "danger");
-      return;
-    }
-
-    let respuesta;
-    try {
-      respuesta = await fetch("/api/pautas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, categoria, descripcion, fecha, responsable, imagenes })
-      });
-    } catch (error) {
-      await mostrarAviso("No se pudo conectar con el servidor.", "danger");
-      return;
-    }
-
-    if (!respuesta.ok) {
-      const error = await respuesta.json().catch(() => ({}));
-      await mostrarAviso(error.mensaje || "No se pudo registrar la nueva pauta.", "danger");
       return;
     }
 
@@ -1446,15 +1111,13 @@ if (formularioNuevaPauta) {
 }
 
 function mostrarHistorial(pautaId = "todos") {
-  const timeline = document.getElementById("timeline");
+  const timeline = $("timeline");
   if (!timeline) return;
 
-  let registros = actualizaciones;
-  if (pautaId !== "todos") {
-    registros = actualizaciones.filter((a) => a.pautaId === Number(pautaId));
-  }
-
-  registros = [...registros].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  const registros = (pautaId === "todos"
+    ? [...actualizaciones]
+    : actualizaciones.filter((a) => a.pautaId === Number(pautaId))
+  ).sort(porFechaDesc);
 
   if (registros.length === 0) {
     timeline.innerHTML = `
@@ -1466,7 +1129,7 @@ function mostrarHistorial(pautaId = "todos") {
   }
 
   timeline.innerHTML = registros.map((registro) => {
-    const pauta = pautas.find((p) => p.bdId === registro.pautaId || p.id === registro.pautaId);
+    const pauta = buscarPauta(registro.pautaId);
 
     return `
       <div class="card shadow-sm mb-3" data-actualizacion-id="${registro.id}">
@@ -1511,53 +1174,25 @@ function verHistorial(pautaId) {
   if (!menuHistorial) return;
 
   menuHistorial.click();
-
-  const selectHistorial = document.getElementById("historial-pauta");
-  if (selectHistorial) {
-    selectHistorial.value = pautaId;
-  }
-
+  if ($("historial-pauta")) $("historial-pauta").value = pautaId;
   mostrarHistorial(pautaId);
 }
 
-const historialSelect = document.getElementById("historial-pauta");
-if (historialSelect) {
-  historialSelect.addEventListener("change", function () {
-    mostrarHistorial(this.value);
-  });
-}
-
-const filtroPautasForm = document.getElementById("form-filtro-pautas");
-const btnBuscarPautas = document.getElementById("btn-buscar-pauta");
-const buscarPautaInput = document.getElementById("buscar-pauta");
-
-if (btnBuscarPautas) {
-  btnBuscarPautas.addEventListener("click", () => mostrarPautas(true));
-}
-
-if (filtroPautasForm) {
-  filtroPautasForm.addEventListener("submit", (event) => {
+$("historial-pauta")?.addEventListener("change", (evento) => mostrarHistorial(evento.target.value));
+$("btn-buscar-pauta")?.addEventListener("click", () => mostrarPautas(true));
+$("form-filtro-pautas")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  mostrarPautas(true);
+});
+$("buscar-pauta")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
     event.preventDefault();
     mostrarPautas(true);
-  });
-}
-
-if (buscarPautaInput) {
-  buscarPautaInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      mostrarPautas(true);
-    }
-  });
-}
-
-const btnNuevaPauta = document.getElementById("btn-nueva-pauta");
-if (btnNuevaPauta) {
-  btnNuevaPauta.addEventListener("click", () => {
-    const menuNuevaPauta = document.querySelector('[data-section="nueva-pauta"]');
-    if (menuNuevaPauta) menuNuevaPauta.click();
-  });
-}
+  }
+});
+$("btn-nueva-pauta")?.addEventListener("click", () => {
+  document.querySelector('[data-section="nueva-pauta"]')?.click();
+});
 
 async function actualizarTodo() {
   let usuarioActual;
@@ -1569,8 +1204,7 @@ async function actualizarTodo() {
       return;
     }
     if (!respuestaSesion.ok) throw new Error("No se pudo validar la sesión.");
-    const sesion = await respuestaSesion.json();
-    usuarioActual = sesion.usuario;
+    usuarioActual = (await respuestaSesion.json()).usuario;
     localStorage.setItem("usuarioActual", JSON.stringify(usuarioActual));
   } catch (error) {
     console.error("No se pudo validar la sesión:", error);
@@ -1579,7 +1213,6 @@ async function actualizarTodo() {
     return;
   }
   aplicarPermisos();
-
   mostrarUsuarioEnCabecera(usuarioActual);
 
   try {
@@ -1597,12 +1230,21 @@ async function actualizarTodo() {
 
 actualizarTodo();
 
+function mostrarMensajeUsuarios(texto, tipo) {
+  const aviso = $("usuarios-mensaje");
+  aviso.textContent = texto;
+  aviso.className = `alert alert-${tipo}`;
+}
+
+function filaUsuarioEstado(texto, clase = "text-body-secondary") {
+  return `<tr><td colspan="4" class="text-center ${clase}">${texto}</td></tr>`;
+}
+
 async function cargarUsuarios() {
-  const tabla = document.getElementById("tabla-usuarios");
-  const mensaje = document.getElementById("usuarios-mensaje");
+  const tabla = $("tabla-usuarios");
   if (!tabla || !esAdministradorGeneral()) return;
-  mensaje.classList.add("d-none");
-  tabla.innerHTML = '<tr><td colspan="4" class="text-center text-body-secondary">Cargando usuarios...</td></tr>';
+  $("usuarios-mensaje").classList.add("d-none");
+  tabla.innerHTML = filaUsuarioEstado("Cargando usuarios...");
 
   try {
     const respuesta = await fetch("/api/auth/usuarios");
@@ -1611,50 +1253,33 @@ async function cargarUsuarios() {
 
     tabla.replaceChildren();
     resultado.forEach((usuario) => {
-      const fila = document.createElement("tr");
-      const nombre = document.createElement("td");
-      const correo = document.createElement("td");
-      const rol = document.createElement("td");
-      const accion = document.createElement("td");
-      nombre.textContent = usuario.usuario;
-      correo.textContent = usuario.correo_electronico;
+      const rol = el("td");
+      const accion = el("td");
 
       if (usuario.rol === "administrador_general") {
-        rol.textContent = "Administrador general";
+        rol.textContent = ETIQUETAS_ROL.administrador_general;
         accion.textContent = "Rol principal";
       } else {
-        const selector = document.createElement("select");
-        selector.className = "form-select";
-        selector.setAttribute("aria-label", `Rol de ${usuario.usuario}`);
-        [
-          ["administrador", "Administrador"],
-          ["operador", "Operador"],
-          ["consulta", "Consulta"]
-        ].forEach(([valor, etiqueta]) => {
-          const opcion = document.createElement("option");
-          opcion.value = valor;
-          opcion.textContent = etiqueta;
-          selector.appendChild(opcion);
+        const selector = el("select", "form-select", "", { "aria-label": `Rol de ${usuario.usuario}` });
+        ["administrador", "operador", "consulta"].forEach((valor) => {
+          const opcion = new Option(ETIQUETAS_ROL[valor], valor);
+          selector.add(opcion);
         });
         selector.value = usuario.rol;
 
-        const guardar = document.createElement("button");
-        guardar.type = "button";
-        guardar.className = "btn btn-outline-primary";
-        guardar.textContent = "Guardar";
+        const guardar = el("button", "btn btn-outline-primary", "Guardar", { type: "button" });
         guardar.addEventListener("click", async () => {
           guardar.disabled = true;
           try {
-            const respuestaRol = await fetch(`/api/auth/usuarios/${encodeURIComponent(usuario.id_usuario)}/rol`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ rol: selector.value })
-            });
-            const resultadoRol = await respuestaRol.json();
-            if (!respuestaRol.ok) throw new Error(resultadoRol.mensaje || "No se pudo actualizar el rol.");
+            const resultadoRol = await enviar(
+              `/api/auth/usuarios/${encodeURIComponent(usuario.id_usuario)}/rol`,
+              "PUT",
+              { rol: selector.value },
+              "No se pudo actualizar el rol."
+            );
             mostrarMensajeUsuarios(resultadoRol.mensaje, "success");
           } catch (error) {
-            mostrarMensajeUsuarios(error.message || "No se pudo conectar con el servidor.", "danger");
+            mostrarMensajeUsuarios(error.message, "danger");
           } finally {
             guardar.disabled = false;
           }
@@ -1663,20 +1288,13 @@ async function cargarUsuarios() {
         accion.appendChild(guardar);
       }
 
-      fila.append(nombre, correo, rol, accion);
+      const fila = el("tr");
+      fila.append(el("td", "", usuario.usuario), el("td", "", usuario.correo_electronico), rol, accion);
       tabla.appendChild(fila);
     });
-    if (!resultado.length) {
-      tabla.innerHTML = '<tr><td colspan="4" class="text-center text-body-secondary">No hay usuarios registrados.</td></tr>';
-    }
+    if (!resultado.length) tabla.innerHTML = filaUsuarioEstado("No hay usuarios registrados.");
   } catch (error) {
-    tabla.innerHTML = '<tr><td colspan="4" class="text-center text-danger">No se pudieron cargar los usuarios.</td></tr>';
+    tabla.innerHTML = filaUsuarioEstado("No se pudieron cargar los usuarios.", "text-danger");
     mostrarMensajeUsuarios(error.message || "No se pudo conectar con el servidor.", "danger");
   }
-}
-
-function mostrarMensajeUsuarios(texto, tipo) {
-  const mensaje = document.getElementById("usuarios-mensaje");
-  mensaje.textContent = texto;
-  mensaje.className = `alert alert-${tipo}`;
 }
