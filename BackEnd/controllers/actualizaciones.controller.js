@@ -1,20 +1,18 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const { sanitizarTextoEnriquecido, textoVisible } = require('../middleware/sanitizar');
+const { tablaPautasLista, normalizarPasos } = require('./pautas.controller');
 
 const database = new sqlite3.Database(path.join(__dirname, '../database/database.sqlite'));
 
-database.run(`
-  CREATE TABLE IF NOT EXISTS actualizaciones (
-    id_actualizacion INTEGER PRIMARY KEY AUTOINCREMENT,
-    pauta_id INTEGER NOT NULL,
-    fecha TEXT NOT NULL DEFAULT (DATE('now')),
-    responsable TEXT NOT NULL,
-    cambio TEXT NOT NULL,
-    observaciones TEXT DEFAULT '',
-    FOREIGN KEY (pauta_id) REFERENCES pautas(id_pauta)
-  )
-`);
+function parsearPasos(texto) {
+  try {
+    const pasos = JSON.parse(texto || '[]');
+    return Array.isArray(pasos) ? pasos : [];
+  } catch (error) {
+    return [];
+  }
+}
 
 function getActualizaciones(req, res) {
   const filtroPauta = req.query.pautaId ? Number(req.query.pautaId) : null;
@@ -30,6 +28,12 @@ function getActualizaciones(req, res) {
       a.responsable,
       a.cambio,
       a.observaciones,
+      a.titulo,
+      a.descripcion,
+      a.conclusion,
+      a.pasos,
+      a.nota,
+      a.categoria AS categoriaPauta,
       p.nombre AS pautaNombre,
       p.categoria
     FROM actualizaciones a
@@ -38,7 +42,7 @@ function getActualizaciones(req, res) {
     ORDER BY a.fecha DESC, a.id_actualizacion DESC
   `, parametros, (error, rows) => {
     if (error) return res.status(500).json({ mensaje: 'No se pudieron obtener las actualizaciones.' });
-    return res.json(rows);
+    return res.json(rows.map((row) => ({ ...row, pasos: parsearPasos(row.pasos) })));
   });
 }
 
@@ -53,31 +57,73 @@ function createActualizacion(req, res) {
     });
   }
 
+  // Campos de la pauta que se actualizan junto con el registro (opcionales por compatibilidad).
+  let campos = null;
+  if (req.body.datos !== undefined) {
+    const d = req.body.datos;
+    const pasos = normalizarPasos(d?.pasos);
+    if (
+      !d || !pasos ||
+      ['descripcion', 'conclusion', 'nota'].some((clave) => typeof d[clave] !== 'string')
+    ) {
+      return res.status(400).json({ mensaje: 'Los datos de la pauta no tienen un formato válido.' });
+    }
+    campos = {
+      descripcion: sanitizarTextoEnriquecido(d.descripcion),
+      conclusion: d.conclusion.trim(),
+      pasos: JSON.stringify(pasos),
+      nota: d.nota.trim()
+    };
+  }
+
   database.serialize(() => {
     database.run('BEGIN TRANSACTION');
 
-    const completar = (idPauta) => {
+    const actualizarPauta = (idPauta, siguiente) => {
+      if (!campos) {
+        return database.run(
+          'UPDATE pautas SET fecha = ?, responsable = ? WHERE id_pauta = ?',
+          [fecha, responsable.trim(), idPauta],
+          siguiente
+        );
+      }
       database.run(
-        'UPDATE pautas SET fecha = ?, responsable = ? WHERE id_pauta = ?',
-        [fecha, responsable.trim(), idPauta],
+        `UPDATE pautas SET fecha = ?, responsable = ?, descripcion = ?, conclusion = ?, pasos = ?, nota = ?
+         WHERE id_pauta = ?`,
+        [fecha, responsable.trim(), campos.descripcion, campos.conclusion, campos.pasos, campos.nota, idPauta],
+        siguiente
+      );
+    };
+
+    const completar = (idPauta) => {
+      actualizarPauta(
+        idPauta,
         (updateError) => {
           if (updateError) return cancelar(updateError);
 
-          database.run(`
-            INSERT INTO actualizaciones (pauta_id, fecha, responsable, cambio, observaciones)
-            VALUES (?, ?, ?, ?, ?)
-          `, [idPauta, fecha, responsable.trim(), cambio.trim(), observaciones?.trim() || ''], function (insertError) {
-            if (insertError) return cancelar(insertError);
+          database.get('SELECT * FROM pautas WHERE id_pauta = ?', [idPauta], (selectError, p) => {
+            if (selectError || !p) return cancelar(selectError || new Error('Pauta no encontrada.'));
 
-            database.run('COMMIT', (commitError) => {
-              if (commitError) return cancelar(commitError);
-              return res.status(201).json({
-                id: this.lastID,
-                pautaId: idPauta,
-                fecha,
-                responsable: responsable.trim(),
-                cambio: cambio.trim(),
-                observaciones: observaciones?.trim() || ''
+            database.run(`
+              INSERT INTO actualizaciones
+                (pauta_id, fecha, responsable, cambio, observaciones, categoria, titulo, descripcion, conclusion, pasos, nota)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+              idPauta, fecha, responsable.trim(), cambio.trim(), observaciones?.trim() || '',
+              p.categoria, p.nombre, p.descripcion || '', p.conclusion || '', p.pasos || '[]', p.nota || ''
+            ], function (insertError) {
+              if (insertError) return cancelar(insertError);
+
+              database.run('COMMIT', (commitError) => {
+                if (commitError) return cancelar(commitError);
+                return res.status(201).json({
+                  id: this.lastID,
+                  pautaId: idPauta,
+                  fecha,
+                  responsable: responsable.trim(),
+                  cambio: cambio.trim(),
+                  observaciones: observaciones?.trim() || ''
+                });
               });
             });
           });
@@ -206,9 +252,16 @@ function getMetricasActividad(req, res) {
   );
 }
 
+// Las columnas de ambas tablas se migran en pautas.controller; se espera a que termine.
+const esperarTablas = (manejador) => (req, res) =>
+  tablaPautasLista.then(() => manejador(req, res)).catch((error) => {
+    console.error('Las tablas no están listas:', error);
+    res.status(500).json({ mensaje: 'La base de datos no está disponible.' });
+  });
+
 module.exports = {
-  getActualizaciones,
-  createActualizacion,
-  updateActualizacion,
-  getMetricasActividad,
+  getActualizaciones: esperarTablas(getActualizaciones),
+  createActualizacion: esperarTablas(createActualizacion),
+  updateActualizacion: esperarTablas(updateActualizacion),
+  getMetricasActividad: esperarTablas(getMetricasActividad),
 };

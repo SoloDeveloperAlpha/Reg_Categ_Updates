@@ -46,7 +46,9 @@ async function inicializarTablaPautas() {
       responsable TEXT NOT NULL DEFAULT '',
       descripcion TEXT NOT NULL DEFAULT '',
       conclusion TEXT NOT NULL DEFAULT '',
-      procesos TEXT NOT NULL DEFAULT '[]'
+      procesos TEXT NOT NULL DEFAULT '[]',
+      pasos TEXT NOT NULL DEFAULT '[]',
+      nota TEXT NOT NULL DEFAULT ''
     )
   `);
 
@@ -56,13 +58,60 @@ async function inicializarTablaPautas() {
     ['responsable', "TEXT NOT NULL DEFAULT ''"],
     ['descripcion', "TEXT NOT NULL DEFAULT ''"],
     ['conclusion', "TEXT NOT NULL DEFAULT ''"],
-    ['procesos', "TEXT NOT NULL DEFAULT '[]'"]
+    ['procesos', "TEXT NOT NULL DEFAULT '[]'"],
+    ['pasos', "TEXT NOT NULL DEFAULT '[]'"],
+    ['nota', "TEXT NOT NULL DEFAULT ''"]
   ];
 
   for (const [nombre, definicion] of columnasNuevas) {
     if (!columnasExistentes.has(nombre)) {
       await ejecutar(`ALTER TABLE pautas ADD COLUMN ${nombre} ${definicion}`);
     }
+  }
+
+  await ejecutar(`
+    CREATE TABLE IF NOT EXISTS actualizaciones (
+      id_actualizacion INTEGER PRIMARY KEY AUTOINCREMENT,
+      pauta_id INTEGER NOT NULL,
+      fecha TEXT NOT NULL DEFAULT (DATE('now')),
+      responsable TEXT NOT NULL,
+      cambio TEXT NOT NULL,
+      observaciones TEXT DEFAULT '',
+      FOREIGN KEY (pauta_id) REFERENCES pautas(id_pauta)
+    )
+  `);
+
+  // El campo "tipo" se eliminó: se quita de bases creadas con una versión anterior.
+  if (columnasExistentes.has('tipo')) await ejecutar('ALTER TABLE pautas DROP COLUMN tipo');
+
+  // Cada actualización guarda una copia de los campos de la pauta al momento de registrarse.
+  const columnasActualizaciones = new Set((await consultar('PRAGMA table_info(actualizaciones)')).map((c) => c.name));
+  const columnasNuevasActualizaciones = [
+    ['categoria', "TEXT NOT NULL DEFAULT ''"],
+    ['titulo', "TEXT NOT NULL DEFAULT ''"],
+    ['descripcion', "TEXT NOT NULL DEFAULT ''"],
+    ['conclusion', "TEXT NOT NULL DEFAULT ''"],
+    ['pasos', "TEXT NOT NULL DEFAULT '[]'"],
+    ['nota', "TEXT NOT NULL DEFAULT ''"]
+  ];
+  if (columnasActualizaciones.has('tipo')) await ejecutar('ALTER TABLE actualizaciones DROP COLUMN tipo');
+  let migradas = false;
+  for (const [nombre, definicion] of columnasNuevasActualizaciones) {
+    if (!columnasActualizaciones.has(nombre)) {
+      await ejecutar(`ALTER TABLE actualizaciones ADD COLUMN ${nombre} ${definicion}`);
+      migradas = true;
+    }
+  }
+  if (migradas) {
+    await ejecutar(`
+      UPDATE actualizaciones SET
+        categoria = COALESCE((SELECT p.categoria FROM pautas p WHERE p.id_pauta = pauta_id), ''),
+        titulo = COALESCE((SELECT p.nombre FROM pautas p WHERE p.id_pauta = pauta_id), ''),
+        descripcion = COALESCE((SELECT p.descripcion FROM pautas p WHERE p.id_pauta = pauta_id), ''),
+        conclusion = COALESCE((SELECT p.conclusion FROM pautas p WHERE p.id_pauta = pauta_id), ''),
+        pasos = COALESCE((SELECT p.pasos FROM pautas p WHERE p.id_pauta = pauta_id), '[]'),
+        nota = COALESCE((SELECT p.nota FROM pautas p WHERE p.id_pauta = pauta_id), '')
+    `);
   }
 
   await ejecutar(`
@@ -86,10 +135,12 @@ tablaPautasLista.catch((error) => {
 
 function mapearPauta(row) {
   let procesos;
+  let pasos;
   try {
     procesos = JSON.parse(row.procesos || '[]');
+    pasos = JSON.parse(row.pasos || '[]');
   } catch (error) {
-    throw new Error(`Los procesos de la pauta ${row.id_pauta} no tienen un JSON válido.`);
+    throw new Error(`Los procesos o pasos de la pauta ${row.id_pauta} no tienen un JSON válido.`);
   }
 
   if (!Array.isArray(procesos)) {
@@ -104,6 +155,8 @@ function mapearPauta(row) {
     responsable: row.responsable,
     descripcion: row.descripcion,
     conclusion: row.conclusion,
+    pasos: Array.isArray(pasos) ? pasos : [],
+    nota: row.nota || '',
     procesos,
     cantidadImagenes: Number(row.cantidad_imagenes || 0)
   };
@@ -117,6 +170,18 @@ function procesosValidos(procesos) {
     proceso.pasos.every((paso) => typeof paso === 'string') &&
     typeof proceso.nota === 'string'
   );
+}
+
+// Acepta una lista de textos o de { paso, descripcion } y la devuelve numerada; null si no es válida.
+function normalizarPasos(pasos) {
+  if (!Array.isArray(pasos)) return null;
+  const normalizados = [];
+  for (const item of pasos) {
+    const descripcion = typeof item === 'string' ? item : item?.descripcion;
+    if (typeof descripcion !== 'string') return null;
+    if (descripcion.trim()) normalizados.push({ paso: normalizados.length + 1, descripcion: descripcion.trim() });
+  }
+  return normalizados;
 }
 
 function imagenValida(datos, tipoMime) {
@@ -363,10 +428,13 @@ async function createPauta(req, res) {
     responsable,
     descripcion = '',
     conclusion = '',
+    pasos = [],
+    nota = '',
     procesos = [],
     imagenes = []
   } = req.body;
   const imagenesValidadas = validarImagenes(imagenes);
+  const pasosNormalizados = normalizarPasos(pasos);
 
   if (
     typeof nombre !== 'string' || !nombre.trim() ||
@@ -375,6 +443,8 @@ async function createPauta(req, res) {
     typeof responsable !== 'string' || !responsable.trim() ||
     typeof descripcion !== 'string' ||
     typeof conclusion !== 'string' ||
+    !pasosNormalizados ||
+    typeof nota !== 'string' ||
     !procesosValidos(procesos) ||
     !imagenesValidadas
   ) {
@@ -390,6 +460,8 @@ async function createPauta(req, res) {
     responsable: responsable.trim(),
     descripcion: sanitizarTextoEnriquecido(descripcion),
     conclusion: conclusion.trim(),
+    pasos: pasosNormalizados,
+    nota: nota.trim(),
     procesos
   };
 
@@ -407,8 +479,8 @@ async function createPauta(req, res) {
     }
 
     const resultado = await ejecutar(
-      `INSERT INTO pautas (nombre, categoria, fecha, responsable, descripcion, conclusion, procesos)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO pautas (nombre, categoria, fecha, responsable, descripcion, conclusion, procesos, pasos, nota)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         pauta.nombre,
         pauta.categoria,
@@ -416,19 +488,28 @@ async function createPauta(req, res) {
         pauta.responsable,
         pauta.descripcion,
         pauta.conclusion,
-        JSON.stringify(pauta.procesos)
+        JSON.stringify(pauta.procesos),
+        JSON.stringify(pauta.pasos),
+        pauta.nota
       ]
     );
 
     await ejecutar(
-      `INSERT INTO actualizaciones (pauta_id, fecha, responsable, cambio, observaciones)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO actualizaciones
+         (pauta_id, fecha, responsable, cambio, observaciones, categoria, titulo, descripcion, conclusion, pasos, nota)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         resultado.lastID,
         pauta.fecha,
         pauta.responsable,
         `Nueva pauta registrada: ${pauta.nombre}`,
-        pauta.descripcion
+        pauta.descripcion,
+        pauta.categoria,
+        pauta.nombre,
+        pauta.descripcion,
+        pauta.conclusion,
+        JSON.stringify(pauta.pasos),
+        pauta.nota
       ]
     );
 
@@ -478,6 +559,8 @@ async function updatePauta(req, res) {
         ? actual.descripcion
         : (typeof body.descripcion === 'string' ? sanitizarTextoEnriquecido(body.descripcion) : null),
       conclusion: texto(body.conclusion, actual.conclusion),
+      pasos: body.pasos === undefined ? actual.pasos : normalizarPasos(body.pasos),
+      nota: texto(body.nota, actual.nota),
       procesos: body.procesos === undefined ? actual.procesos : body.procesos
     };
 
@@ -487,6 +570,8 @@ async function updatePauta(req, res) {
       typeof pauta.responsable !== 'string' ||
       typeof pauta.descripcion !== 'string' ||
       typeof pauta.conclusion !== 'string' ||
+      !pauta.pasos ||
+      typeof pauta.nota !== 'string' ||
       !procesosValidos(pauta.procesos)
     ) {
       return res.status(400).json({ mensaje: 'Los datos de la pauta no tienen un formato válido.' });
@@ -502,7 +587,8 @@ async function updatePauta(req, res) {
 
     await ejecutar(
       `UPDATE pautas
-       SET nombre = ?, categoria = ?, fecha = ?, responsable = ?, descripcion = ?, conclusion = ?, procesos = ?
+       SET nombre = ?, categoria = ?, fecha = ?, responsable = ?, descripcion = ?, conclusion = ?, procesos = ?,
+           pasos = ?, nota = ?
        WHERE id_pauta = ?`,
       [
         pauta.nombre,
@@ -512,6 +598,8 @@ async function updatePauta(req, res) {
         pauta.descripcion,
         pauta.conclusion,
         JSON.stringify(pauta.procesos),
+        JSON.stringify(pauta.pasos),
+        pauta.nota,
         id
       ]
     );
@@ -571,6 +659,8 @@ async function deletePauta(req, res) {
 }
 
 module.exports = {
+  tablaPautasLista,
+  normalizarPasos,
   getPautas,
   getPautaById,
   getImagenesPauta,

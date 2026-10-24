@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS pautas (
     responsable TEXT NOT NULL DEFAULT '',
     descripcion TEXT NOT NULL DEFAULT '',
     conclusion TEXT NOT NULL DEFAULT '',
-    procesos TEXT NOT NULL DEFAULT '[]'
+    procesos TEXT NOT NULL DEFAULT '[]',
+    pasos TEXT NOT NULL DEFAULT '[]',   -- JSON: [{ "paso": 1, "descripcion": "..." }]
+    nota TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS actualizaciones (
@@ -34,6 +36,12 @@ CREATE TABLE IF NOT EXISTS actualizaciones (
     responsable TEXT NOT NULL,
     cambio TEXT NOT NULL,
     observaciones TEXT DEFAULT '',
+    categoria TEXT NOT NULL DEFAULT '',
+    titulo TEXT NOT NULL DEFAULT '',
+    descripcion TEXT NOT NULL DEFAULT '',
+    conclusion TEXT NOT NULL DEFAULT '',
+    pasos TEXT NOT NULL DEFAULT '[]',
+    nota TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (pauta_id) REFERENCES pautas(id_pauta)
 );
 
