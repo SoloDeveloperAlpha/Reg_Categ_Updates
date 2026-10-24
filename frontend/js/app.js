@@ -42,6 +42,34 @@ function mensaje(texto, clase = "text-body-secondary mb-0") {
   return el("p", clase, texto);
 }
 
+const SIN_INFORMACION = "Sin información";
+const textoOVacio = (valor) => (typeof valor === "string" && valor.trim()) || SIN_INFORMACION;
+const pasosATexto = (pasos = []) => pasos.map((paso) => paso.descripcion).join("\n");
+const textoAPasos = (texto) => texto.split("\n").map((linea) => linea.trim()).filter(Boolean);
+
+function textoPlano(html) {
+  return new DOMParser().parseFromString(html || "", "text/html").body.textContent.trim();
+}
+
+function llenarPasos(contenedor, pasos = []) {
+  if (pasos.length === 0) {
+    contenedor.replaceChildren(mensaje("Sin pasos registrados."));
+    return;
+  }
+  const lista = el("ol", "mb-0");
+  lista.append(...pasos.map((paso) => el("li", "", paso.descripcion)));
+  contenedor.replaceChildren(lista);
+}
+
+function celdaResumen(texto) {
+  const celda = el("td");
+  const contenido = texto || "";
+  const resumen = el("div", `text-truncate${contenido ? "" : " text-muted"}`, contenido || "-", { title: contenido });
+  resumen.style.maxWidth = "14rem";
+  celda.appendChild(resumen);
+  return celda;
+}
+
 async function enviar(url, metodo, cuerpo, mensajeError) {
   const respuesta = await fetch(url, {
     method: metodo,
@@ -90,7 +118,8 @@ async function cargarDatosBD() {
     ...pauta,
     id: Number(pauta.id),
     bdId: Number(pauta.id),
-    procesos: Array.isArray(pauta.procesos) ? pauta.procesos : []
+    procesos: Array.isArray(pauta.procesos) ? pauta.procesos : [],
+    pasos: Array.isArray(pauta.pasos) ? pauta.pasos : []
   }));
 }
 
@@ -328,13 +357,20 @@ let actualizacionEnEdicion = null;
 function mostrarDetalleActualizacion(actualizacion) {
   actualizacionEnDetalle = actualizacion;
   $("detalle-actualizacion-titulo").textContent = nombrePautaDe(actualizacion);
+  $("detalle-actualizacion-categoria").textContent = textoOVacio(actualizacion.categoriaPauta);
   $("detalle-actualizacion-fecha").textContent = actualizacion.fecha || "-";
   $("detalle-actualizacion-responsable").textContent = actualizacion.responsable || "-";
+  $("detalle-actualizacion-descripcion").innerHTML =
+    actualizacion.descripcion?.trim() ? htmlSeguro(actualizacion.descripcion) : SIN_INFORMACION;
+  $("detalle-actualizacion-conclusion").textContent = textoOVacio(actualizacion.conclusion);
+  llenarPasos($("detalle-actualizacion-pasos"), actualizacion.pasos);
+  $("detalle-actualizacion-nota").textContent = textoOVacio(actualizacion.nota);
   $("detalle-actualizacion-cambio").innerHTML = htmlSeguro(actualizacion.cambio);
   $("detalle-actualizacion-observaciones").innerHTML =
     actualizacion.observaciones?.trim() ? htmlSeguro(actualizacion.observaciones) : "Sin observaciones.";
   $("detalle-actualizacion-editar").classList.toggle("d-none", !puedeEditar());
   mostrarModal("detalle-actualizacion-modal");
+  cargarEvidenciasDetalle($("detalle-actualizacion-imagenes"), actualizacion.pautaId);
 }
 
 function abrirEdicionActualizacion(actualizacion) {
@@ -423,41 +459,21 @@ function mostrarUltimosCambios() {
   `;
 }
 
-let pautaEnEdicion = null;
 let pautaEnDetalle = null;
 
-function abrirEdicionPauta(pauta) {
-  pautaEnEdicion = pauta;
-  $("editar-pauta-titulo").textContent = `Editar pauta · ${pauta.nombre}`;
-  $("editar-pauta-categoria").value = pauta.categoria || "";
-  $("editar-pauta-nombre").value = pauta.nombre || "";
-  $("editar-pauta-descripcion").value = pauta.descripcion || "";
-  $("editar-pauta-conclusion").value = pauta.conclusion || "";
-  $("editar-pauta-categorias").replaceChildren(...categoriasUnicas().map((categoria) => new Option(categoria)));
-  mostrarModal("editar-pauta-modal");
+// Lleva la pauta al formulario de actualización con todos sus campos precargados.
+function editarPauta(pauta) {
+  document.querySelector('[data-section="actualizacion"]')?.click();
+  const categoriaSelect = $("pauta-categoria");
+  categoriaSelect.value = pauta.categoria;
+  actualizarSelectHijos(pauta.categoria);
+  $("pauta-select").value = idPauta(pauta);
+  cargarDetallePautaSeleccionada();
 }
 
 $("detalle-pauta-editar")?.addEventListener("click", () => {
   const pauta = pautaEnDetalle;
-  if (pauta) abrirTrasCerrar("detalle-pauta-modal", () => abrirEdicionPauta(pauta));
-});
-
-$("editar-pauta-form")?.addEventListener("submit", async (evento) => {
-  evento.preventDefault();
-  const pauta = pautaEnEdicion;
-  if (!pauta) return;
-  await guardarConBoton("editar-pauta-guardar", async () => {
-    await enviar(`/api/pautas/${encodeURIComponent(idPauta(pauta))}`, "PUT", {
-      categoria: $("editar-pauta-categoria").value,
-      nombre: $("editar-pauta-nombre").value,
-      descripcion: $("editar-pauta-descripcion").value,
-      conclusion: $("editar-pauta-conclusion").value
-    }, "No se pudo guardar la pauta.");
-
-    ocultarModal("editar-pauta-modal");
-    await recargarPautas();
-    await mostrarAviso("La pauta se editó correctamente.", "success");
-  });
+  if (pauta) abrirTrasCerrar("detalle-pauta-modal", () => editarPauta(pauta));
 });
 
 async function recargarPautas() {
@@ -476,7 +492,7 @@ function botonIcono(clase, icono, titulo, abreDialogo, alClick) {
 }
 
 function filaMensaje(texto) {
-  return `<tr><td colspan="5" class="text-center text-muted py-4">${texto}</td></tr>`;
+  return `<tr><td colspan="6" class="text-center text-muted py-4">${texto}</td></tr>`;
 }
 
 function mostrarPautas(busquedaSolicitada = false) {
@@ -523,8 +539,8 @@ function mostrarPautas(busquedaSolicitada = false) {
     }
     if (puedeEditar()) {
       botones.push(
-        botonIcono("btn-outline-primary", "pencil-square", `Editar pauta ${pauta.nombre}`, true,
-          () => abrirEdicionPauta(pauta)),
+        botonIcono("btn-outline-primary", "pencil-square", `Editar pauta ${pauta.nombre}`, false,
+          () => editarPauta(pauta)),
         botonIcono("btn-outline-danger", "trash", `Eliminar pauta ${pauta.nombre}`, false,
           function () { solicitarEliminacionPauta(pauta, this); })
       );
@@ -540,6 +556,7 @@ function mostrarPautas(busquedaSolicitada = false) {
     fila.append(
       nombre,
       el("td", "", pauta.categoria),
+      celdaResumen(textoPlano(pauta.descripcion)),
       el("td", "", pauta.fecha || "-"),
       el("td", "", pauta.responsable || "-"),
       acciones
@@ -605,48 +622,58 @@ async function mostrarDetallePauta(pauta) {
   $("detalle-pauta-fecha").textContent = pauta.fecha || "-";
   $("detalle-pauta-responsable").textContent = pauta.responsable || "-";
   $("detalle-pauta-descripcion").innerHTML =
-    pauta.descripcion?.trim() ? htmlSeguro(pauta.descripcion) : "No se ha registrado una descripción.";
-  $("detalle-pauta-conclusion").textContent = pauta.conclusion?.trim() || "No se ha registrado una conclusión.";
+    pauta.descripcion?.trim() ? htmlSeguro(pauta.descripcion) : SIN_INFORMACION;
+  $("detalle-pauta-conclusion").textContent = textoOVacio(pauta.conclusion);
+  llenarPasos($("detalle-pauta-pasos"), pauta.pasos);
+  $("detalle-pauta-nota").textContent = textoOVacio(pauta.nota);
 
   $("detalle-pauta-procesos").replaceChildren(
     ...(pauta.procesos.length === 0
       ? [mensaje("No se han registrado procesos.")]
       : pauta.procesos.map(crearTarjetaProceso))
   );
-  const contenedorImagenes = $("detalle-pauta-imagenes");
-  contenedorImagenes.replaceChildren();
 
-  const pautaId = idPauta(pauta);
-  if (pautaId) {
-    let imagenes;
-    try {
-      const respuesta = await fetch(urlImagenes(pautaId));
-      if (!respuesta.ok) throw new Error();
-      imagenes = await respuesta.json();
-    } catch (error) {
-      await mostrarAviso("No se pudieron cargar las evidencias de la pauta.", "danger");
-      return;
-    }
-
-    if (imagenes.length === 0) {
-      contenedorImagenes.appendChild(mensaje("No se han adjuntado evidencias."));
-    } else {
-      imagenes.forEach((imagen) => {
-        const enlace = el("a", "", "", {
-          href: urlImagenes(pautaId, imagen.id),
-          target: "_blank",
-          rel: "noopener noreferrer",
-          "aria-label": `Abrir evidencia ${imagen.nombre}`
-        });
-        const vistaPrevia = el("img", "img-thumbnail", "", { src: enlace.href, alt: imagen.nombre });
-        Object.assign(vistaPrevia.style, { width: "10rem", height: "10rem", objectFit: "cover" });
-        enlace.appendChild(vistaPrevia);
-        contenedorImagenes.appendChild(enlace);
-      });
-    }
-  }
+  // La última actualización aporta el cambio y las observaciones, igual que el popup del Dashboard.
+  const ultima = ultimaActualizacionDe(idPauta(pauta));
+  $("detalle-pauta-cambio").innerHTML = ultima?.cambio?.trim() ? htmlSeguro(ultima.cambio) : SIN_INFORMACION;
+  $("detalle-pauta-observaciones").innerHTML =
+    ultima?.observaciones?.trim() ? htmlSeguro(ultima.observaciones) : "Sin observaciones.";
 
   mostrarModal("detalle-pauta-modal");
+  await cargarEvidenciasDetalle($("detalle-pauta-imagenes"), idPauta(pauta));
+}
+
+function ultimaActualizacionDe(pautaId) {
+  return actualizaciones
+    .filter((item) => Number(item.pautaId) === Number(pautaId))
+    .sort((a, b) => porFechaDesc(a, b) || Number(b.id) - Number(a.id))[0];
+}
+
+async function cargarEvidenciasDetalle(contenedor, pautaId) {
+  contenedor.replaceChildren(mensaje("Cargando evidencias..."));
+  try {
+    const respuesta = await fetch(urlImagenes(pautaId));
+    if (!respuesta.ok) throw new Error();
+    const imagenes = await respuesta.json();
+    if (imagenes.length === 0) {
+      contenedor.replaceChildren(mensaje("No se han adjuntado evidencias."));
+      return;
+    }
+    contenedor.replaceChildren(...imagenes.map((imagen) => {
+      const enlace = el("a", "", "", {
+        href: urlImagenes(pautaId, imagen.id),
+        target: "_blank",
+        rel: "noopener noreferrer",
+        "aria-label": `Abrir evidencia ${imagen.nombre}`
+      });
+      const vistaPrevia = el("img", "img-thumbnail", "", { src: enlace.href, alt: imagen.nombre });
+      Object.assign(vistaPrevia.style, { width: "10rem", height: "10rem", objectFit: "cover" });
+      enlace.appendChild(vistaPrevia);
+      return enlace;
+    }));
+  } catch (error) {
+    contenedor.replaceChildren(mensaje("No se pudieron cargar las evidencias de la pauta.", "text-danger mb-0"));
+  }
 }
 
 function solicitarEliminacionPauta(pauta, boton) {
@@ -724,30 +751,25 @@ function actualizarSelectHijos(categoria) {
 
   pautaSelect.replaceChildren(new Option("Seleccionar pauta", ""));
   if ($("cambio")) $("cambio").value = "";
+  if ($("actualizacion-titulo")) llenarCamposActualizacion(null);
   cargarEvidenciasPautaSeleccionada(0);
   const pautasCategoria = pautas.filter((pauta) => pauta.categoria === categoria);
   pautaSelect.disabled = pautasCategoria.length === 0;
   pautasCategoria.forEach((pauta) => pautaSelect.add(new Option(pauta.nombre, idPauta(pauta))));
 }
 
-function obtenerDetallePauta(pauta) {
-  const resumenProcesos = pauta.procesos.map((proceso) => [
-    proceso.nombre,
-    ...proceso.pasos.map((paso, index) => `${index + 1}. ${paso}`),
-    proceso.nota ? `Nota: ${proceso.nota}` : ""
-  ].filter(Boolean).join("\n")).join("\n\n");
-
-  return [pauta.descripcion, pauta.conclusion, resumenProcesos]
-    .filter(Boolean)
-    .map(htmlSeguro)
-    .join("<br><br>");
+function llenarCamposActualizacion(pauta) {
+  $("actualizacion-titulo").value = pauta?.nombre || "";
+  $("actualizacion-descripcion").value = pauta?.descripcion || "";
+  $("actualizacion-conclusion").value = pauta?.conclusion || "";
+  $("actualizacion-pasos").value = pasosATexto(pauta?.pasos);
+  $("actualizacion-nota").value = pauta?.nota || "";
 }
 
 function cargarDetallePautaSeleccionada() {
   const pautaId = Number($("pauta-select")?.value);
-  const cambio = $("cambio");
   const pauta = pautas.find((item) => Number(idPauta(item)) === pautaId);
-  if (pautaId && cambio && pauta) cambio.value = obtenerDetallePauta(pauta);
+  llenarCamposActualizacion(pauta);
   cargarEvidenciasPautaSeleccionada(pautaId);
 }
 
@@ -1010,6 +1032,12 @@ if (formulario) {
         pauta: { nombre: pauta.nombre, categoria: pauta.categoria },
         fecha: fechaLocal(),
         responsable: $("responsable").value.trim() || obtenerUsuarioActual()?.usuario || "",
+        datos: {
+          descripcion: $("actualizacion-descripcion").value.trim(),
+          conclusion: $("actualizacion-conclusion").value.trim(),
+          pasos: textoAPasos($("actualizacion-pasos").value),
+          nota: $("actualizacion-nota").value.trim()
+        },
         cambio: $("cambio").value.trim(),
         observaciones: $("observaciones").value.trim()
       }, "No se pudo guardar la actualización.");
@@ -1096,6 +1124,9 @@ if (formularioNuevaPauta) {
         nombre: $("nueva-pauta-nombre").value.trim(),
         categoria,
         descripcion: $("nueva-pauta-descripcion").value.trim(),
+        conclusion: $("nueva-pauta-conclusion").value.trim(),
+        pasos: textoAPasos($("nueva-pauta-pasos").value),
+        nota: $("nueva-pauta-nota").value.trim(),
         fecha: fechaLocal(),
         responsable,
         imagenes: await leerImagenes(Array.from(imagenesInput.files))
